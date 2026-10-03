@@ -136,8 +136,10 @@
   }
   .note {
     font-size: 14px; color: var(--ink-2); padding: 14px 0; border-bottom: 1px solid var(--line);
-    display: flex; gap: 12px; align-items: baseline; justify-content: space-between;
+    display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: baseline; justify-content: space-between;
   }
+  .note > span:first-child { flex: 1 1 220px; }
+  .note-actions { display: flex; gap: 18px; }
   .note button {
     flex: 0 0 auto; background: none; border: 0; padding: 0; cursor: pointer;
     font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink);
@@ -298,8 +300,14 @@
 
   /* ---------- historique ---------- */
   .hist { border-top: 1px solid var(--line); }
+  .week-h { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 16px 0 6px; }
+  .kicker + .week-h { margin-top: 0; }
+  .hrow .d small { display: flex; align-items: center; gap: 5px; font-family: var(--body); font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .hrow .d small .dot { width: 7px; height: 7px; }
+  .shared { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .last-head b { color: var(--ink); font-weight: 600; }
   .hrow {
-    display: grid; grid-template-columns: 74px 70px 1fr 32px; align-items: center; gap: 8px;
+    display: grid; grid-template-columns: 76px 70px 1fr 32px; align-items: center; gap: 8px;
     padding: 10px 0; border-bottom: 1px solid var(--line);
     font-family: var(--mono); font-size: 13.5px; font-variant-numeric: tabular-nums;
   }
@@ -395,6 +403,14 @@
   .pick-i:hover { color: var(--ink); }
   .pick-i svg { width: 19px; height: 19px; }
   .pick-none { color: var(--muted); font-size: 14px; padding: 18px 0; }
+  .create-row {
+    width: 100%; display: flex; align-items: center; gap: 10px; padding: 13px 0; margin-top: 4px;
+    background: none; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; text-align: left;
+    font-weight: 700; font-size: 15.5px; color: var(--accent);
+  }
+  .create-row svg { width: 16px; height: 16px; flex: 0 0 auto; }
+  textarea.inp { resize: vertical; min-height: 76px; line-height: 1.45; }
+  .hint { font-size: 12.5px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
 
   .toast {
     position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 60;
@@ -477,6 +493,7 @@
     <div class="form-group">
       <label class="lbl" for="exName">Nom</label>
       <input type="text" id="exName" class="inp" placeholder="Développé couché" autocomplete="off">
+      <div class="hint">Même nom dans plusieurs séances = un seul historique (par exemple le couché en Push et en Upper).</div>
     </div>
     <div class="form-group">
       <label class="lbl" for="exDay">Séance</label>
@@ -501,6 +518,10 @@
     <div class="form-group">
       <label class="lbl" for="increment">Palier (kg ajoutés quand tu montes)</label>
       <input type="number" id="increment" class="inp" inputmode="decimal" value="2.5" min="0.5" step="0.5">
+    </div>
+    <div class="form-group">
+      <label class="lbl" for="exNote">Note (facultatif)</label>
+      <textarea id="exNote" class="inp" rows="3" placeholder="Consignes, réglage de la machine, prise…"></textarea>
     </div>
     <div class="err" id="exErr"></div>
     <div class="sheet-actions">
@@ -532,6 +553,7 @@
     <h3 id="infoTitle"></h3>
     <div class="info-muscle" id="infoMuscle"></div>
     <p class="info-body" id="infoBody"></p>
+    <p class="info-body" id="infoNote" hidden></p>
     <div class="sheet-actions"><button class="btn btn-ghost" id="infoClose">Fermer</button></div>
   </div>
 </div>
@@ -807,7 +829,27 @@
   function getDay(id) { return state.days.find((d) => d.id === id); }
   function dayIndex(id) { return Math.max(0, state.days.findIndex((d) => d.id === id)); }
   function exOfDay(dayId) { return state.exercises.filter((e) => e.dayId === dayId); }
-  function lastOf(ex) { return ex.sessions[ex.sessions.length - 1] || null; }
+  function dayName(id) { return (getDay(id) || { name: "?" }).name; }
+  // Un exercice qui porte le même nom dans plusieurs séances partage un seul historique
+  // (ex. le couché en Push et en Upper) : la progression suit le mouvement, pas la séance.
+  function linkedOf(ex) { const k = normalize(ex.name); return state.exercises.filter((e) => normalize(e.name) === k); }
+  function historyOf(ex) {
+    const out = [];
+    linkedOf(ex).forEach((owner) => owner.sessions.forEach((s) => out.push({ s, owner })));
+    return out.sort((a, b) => a.s.date.localeCompare(b.s.date) || String(a.s.id).localeCompare(String(b.s.id)));
+  }
+  function lastEntry(ex) { const h = historyOf(ex); return h[h.length - 1] || null; }
+  function lastOf(ex) { const e = lastEntry(ex); return e ? e.s : null; }
+  function fmtDay(iso) { return parseISO(iso).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }); }
+  function fmtDayLong(iso) { return parseISO(iso).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }); }
+  function weekStartISO(iso) { const d = parseISO(iso); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoOf(d); }
+  function weekLabel(ws) {
+    const cur = weekStartISO(todayISO());
+    if (ws === cur) return "Cette semaine";
+    const prev = parseISO(cur); prev.setDate(prev.getDate() - 7);
+    if (ws === isoOf(prev)) return "Semaine dernière";
+    return "Semaine du " + fmtDate(ws);
+  }
 
   function validated(ex, s) { return s.reps.length >= ex.sets && s.reps.filter((r) => r >= ex.repMax).length >= ex.sets; }
   function status(ex) {
@@ -838,9 +880,10 @@
     const diff = Math.round((now - parseISO(iso)) / 86400000);
     if (diff <= 0) return "aujourd'hui";
     if (diff === 1) return "hier";
-    if (diff < 7) return "il y a " + diff + " j";
-    if (diff < 14) return "il y a 1 sem.";
-    return "il y a " + Math.floor(diff / 7) + " sem.";
+    // espaces insécables : « il y a 5 j » ne se coupe pas en fin de ligne
+    if (diff < 7) return "il y a " + diff + " j";
+    if (diff < 14) return "il y a 1 sem.";
+    return "il y a " + Math.floor(diff / 7) + " sem.";
   }
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -895,7 +938,8 @@
         <button id="installBtn">${installEvt ? "Installer" : "Comment"}</button></div>`;
     }
     if (state.demo) {
-      html += `<div class="note"><span>Programme pré-rempli d'après les checklists de ton coach. Tout reste modifiable.</span><button id="dismissNote">OK</button></div>`;
+      html += `<div class="note"><span>Programme d'exemple : un split Push, Pull, Legs, Upper, Lower. Garde-le et adapte-le, ou pars de zéro avec tes propres séances.</span>
+        <span class="note-actions"><button id="dismissNote">Garder</button><button id="startEmpty">Partir de zéro</button></span></div>`;
     }
     if (!state.days.length) {
       html += `<div class="empty"><strong>Aucune séance</strong>Crée tes séances de split (Push, Pull, Legs…) puis ajoute leurs exercices.</div>`;
@@ -922,6 +966,12 @@
     $("#addDay").addEventListener("click", () => openDaySheet(null));
     const dn = $("#dismissNote");
     if (dn) dn.addEventListener("click", () => { state.demo = false; save(); renderHome(); });
+    const se = $("#startEmpty");
+    if (se) se.addEventListener("click", () => {
+      confirmAction("Partir de zéro ?", "Les séances et exercices d'exemple seront retirés. Tu crées ensuite tes séances et tu choisis tes exercices dans le répertoire, ou tu crées les tiens.", () => {
+        state = { days: [], exercises: [] }; save(); renderHome();
+      }, "Partir de zéro");
+    });
     const ib = $("#installBtn");
     if (ib) ib.addEventListener("click", async () => {
       if (installEvt) {
@@ -1043,9 +1093,11 @@
       html += '<ol class="list">';
       exs.forEach((ex, i) => {
         const st = status(ex);
-        const l = lastOf(ex);
+        const le = lastEntry(ex);
         const nw = nextWeight(ex);
-        const lastTxt = l ? `${fmtW(l.weight)} kg · ${l.reps.join(" ")}` : "Pas encore fait";
+        const lastTxt = le
+          ? `${fmtW(le.s.weight)} kg · ${le.s.reps.join(" ")}${le.owner.dayId !== dayId ? ` · ${escapeHtml(dayName(le.owner.dayId))}, ${relDate(le.s.date)}` : ""}`
+          : "Pas encore fait";
         const label = st === "go" ? "Monte" : st === "hold" ? "Garde" : "À tester";
         const num = nw === null ? "—" : `${st === "go" ? "↑" : ""}${fmtW(nw)}<small>kg</small>`;
         html += `<li><button class="ex" data-id="${ex.id}">
@@ -1084,16 +1136,24 @@
       verdict = `Premier essai. Prends une charge qui te permet ${ex.repMin} à ${ex.repMax} reps, puis note-la ci-dessous.`;
     }
 
+    const H = historyOf(ex);
+    const le = lastEntry(ex);
     let lastBlock = "";
-    if (last) {
-      lastBlock = `<div class="last-head">Dernière fois · ${fmtDate(last.date)} · ${fmtW(last.weight)} kg</div><div class="sets-last">`;
+    if (le) {
+      const where = le.owner.dayId !== ex.dayId ? `en <b>${escapeHtml(dayName(le.owner.dayId))}</b> · ` : "";
+      lastBlock = `<div class="last-head">Dernière fois · ${where}${fmtDayLong(last.date)} · ${fmtW(last.weight)} kg</div><div class="sets-last">`;
       last.reps.forEach((r, i) => { lastBlock += `<div class="sl ${r >= ex.repMax ? "hit" : ""}"><small>S${i + 1}</small>${r}</div>`; });
       lastBlock += "</div>";
     }
 
+    const others = linkedOf(ex).filter((o) => o.id !== ex.id);
+    const shared = others.length
+      ? `<div class="shared">Historique commun avec ${others.map((o) => escapeHtml(dayName(o.dayId))).join(", ")}</div>`
+      : "";
+
     let trend = "";
-    if (ex.sessions.length >= 2) {
-      const first = ex.sessions[0];
+    if (H.length >= 2) {
+      const first = H[0].s;
       if (last.weight > first.weight) trend = `<div class="trend">+${fmtW(last.weight - first.weight)} kg depuis le ${fmtDate(first.date)}</div>`;
     }
 
@@ -1110,19 +1170,29 @@
     }
 
     let hist;
-    if (ex.sessions.length) {
-      hist = '<div class="hist">';
-      [...ex.sessions].reverse().forEach((s) => {
+    if (H.length) {
+      hist = "";
+      let curWeek = null;
+      [...H].reverse().forEach(({ s, owner }) => {
+        const ws = weekStartISO(s.date);
+        if (ws !== curWeek) {
+          if (curWeek !== null) hist += "</div>";
+          curWeek = ws;
+          hist += `<div class="week-h">${weekLabel(ws)}</div><div class="hist">`;
+        }
         const reps = s.reps.map((r) => `<span class="${r >= ex.repMax ? "hit" : ""}">${r}</span>`).join("");
-        hist += `<div class="hrow"><span class="d">${fmtDate(s.date)}</span><span class="w">${fmtW(s.weight)} kg</span><span class="r">${reps}</span>
-          <button class="hdel" data-del="${s.id}" aria-label="Supprimer la séance du ${fmtDate(s.date)}">${icons.trash}</button></div>`;
+        hist += `<div class="hrow">
+            <span class="d">${fmtDay(s.date)}<small>${dot(dayIndex(owner.dayId))}${escapeHtml(dayName(owner.dayId))}</small></span>
+            <span class="w">${fmtW(s.weight)} kg</span><span class="r">${reps}</span>
+            <button class="hdel" data-del="${s.id}" aria-label="Supprimer la séance du ${fmtDayLong(s.date)}">${icons.trash}</button>
+          </div>`;
       });
       hist += "</div>";
     } else {
       hist = '<div class="hist-empty">Rien de noté pour l\'instant.</div>';
     }
 
-    const chartBlock = ex.sessions.length >= 2
+    const chartBlock = H.length >= 2
       ? `<div class="chart" id="chart" tabindex="0" role="img" aria-label="Courbe de charge de ${escapeHtml(ex.name)}, séance par séance. Détail dans l'historique ci-dessous."></div>
          <div class="chart-key">
            <span><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.5" class="c-ok"/></svg>Séance validée (${ex.sets}×${ex.repMax})</span>
@@ -1136,8 +1206,8 @@
         <div class="kicker">Prochaine séance</div>
         <div class="big ${st}">${nw === null ? "—" : fmtW(nw)}${nw === null ? "" : '<span class="u">kg</span>'}</div>
         <p class="verdict">${verdict}</p>
-        ${lastBlock}${trend}
-        ${descOf(ex.name) ? `<button class="how" id="howBtn">${icons.info}Comment faire cet exercice</button>` : ""}
+        ${lastBlock}${trend}${shared}
+        ${descOf(ex.name) || ex.note ? `<button class="how" id="howBtn">${icons.info}${descOf(ex.name) ? "Comment faire cet exercice" : "Voir ma note"}</button>` : ""}
       </section>
 
       <section>
@@ -1176,10 +1246,11 @@
     }));
     $("#saveSession").addEventListener("click", () => saveSession(ex.id));
     const hb = $("#howBtn");
-    if (hb) hb.addEventListener("click", () => openInfo(ex.name));
+    if (hb) hb.addEventListener("click", () => openInfo(ex.name, ex.note));
     main.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => {
       confirmAction("Supprimer la séance ?", "Elle sera retirée de l'historique. Action définitive.", () => {
-        ex.sessions = ex.sessions.filter((s) => s.id !== b.dataset.del); save(); renderDetail(ex.id);
+        linkedOf(ex).forEach((o) => { o.sessions = o.sessions.filter((s) => s.id !== b.dataset.del); });
+        save(); renderDetail(ex.id);
       });
     }));
     drawChart(ex);
@@ -1192,8 +1263,9 @@
   }
   function drawChart(ex) {
     const box = $("#chart");
-    if (!box || !ex || ex.sessions.length < 2) return;
-    const pts = ex.sessions.map((s, i) => ({ s, i, t: parseISO(s.date).getTime(), w: s.weight, ok: validated(ex, s) }));
+    const hist = ex ? historyOf(ex) : [];
+    if (!box || hist.length < 2) return;
+    const pts = hist.map(({ s, owner }, i) => ({ s, owner, i, t: parseISO(s.date).getTime(), w: s.weight, ok: validated(ex, s) }));
     const W = Math.max(260, Math.round(box.clientWidth)), H = 200;
     const L = 40, R = 14, T = 24, B = 26;
     const min = Math.min(...pts.map((p) => p.w)), max = Math.max(...pts.map((p) => p.w));
@@ -1238,7 +1310,7 @@
       const p = pts[cur], x = X(p), y = Y(p.w);
       cross.setAttribute("x1", x); cross.setAttribute("x2", x); cross.setAttribute("visibility", "visible");
       focus.setAttribute("cx", x); focus.setAttribute("cy", y); focus.setAttribute("visibility", "visible");
-      tip.innerHTML = `<b>${fmtDate(p.s.date)}</b> · ${fmtW(p.w)} kg<br>${p.s.reps.join(" · ")} reps${p.ok ? `<br>${ex.sets}×${ex.repMax} validé` : ""}`;
+      tip.innerHTML = `<b>${fmtDayLong(p.s.date)}</b> · ${escapeHtml(dayName(p.owner.dayId))}<br>${fmtW(p.w)} kg · ${p.s.reps.join(" ")} reps${p.ok ? `<br>${ex.sets}×${ex.repMax} validé` : ""}`;
       tip.hidden = false;
       const scale = svgEl.getBoundingClientRect().width / W || 1;
       const tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -1297,12 +1369,30 @@
     renderPickList("");
     openOverlay("#pickSheet");
   }
+  // Exercices créés par l'utilisateur (absents du répertoire de base), pour les réutiliser.
+  function myExercises() {
+    const lib = new Set();
+    LIBRARY.forEach((g) => g.items.forEach((it) => lib.add(normalize(it[0]))));
+    const seen = new Set(), mine = [];
+    state.exercises.forEach((e) => {
+      const k = normalize(e.name);
+      if (lib.has(k) || seen.has(k)) return;
+      seen.add(k);
+      mine.push([e.name, e.repMin, e.repMax, e.increment, e.sets]);
+    });
+    return mine.sort((a, b) => a[0].localeCompare(b[0], "fr"));
+  }
   function renderPickList(q) {
     const list = $("#pickList");
-    const query = normalize(q.trim());
+    const raw = q.trim();
+    const query = normalize(raw);
     const inDay = new Set(exOfDay(currentDayId).map((e) => normalize(e.name)));
+    const mine = myExercises();
+    const groups = (mine.length ? [{ cat: "Mes exercices", items: mine }] : []).concat(LIBRARY);
+    const exact = groups.some((g) => g.items.some((it) => normalize(it[0]) === query));
     let html = "", total = 0;
-    LIBRARY.forEach((group) => {
+    if (raw && !exact) html += `<button class="create-row" id="pickCreate">${icons.plus}Créer « ${escapeHtml(raw)} »</button>`;
+    groups.forEach((group) => {
       const matches = group.items.filter((it) => !query || normalize(it[0]).includes(query));
       if (!matches.length) return;
       html += `<div class="pick-cat">${group.cat}</div>`;
@@ -1310,7 +1400,7 @@
         total++;
         const added = inDay.has(normalize(it[0]));
         html += `<div class="pick-row ${added ? "added" : ""}">
-            <button class="pr-main" data-name="${escapeHtml(it[0])}" data-min="${it[1]}" data-max="${it[2]}" data-inc="${it[3]}">
+            <button class="pr-main" data-name="${escapeHtml(it[0])}" data-min="${it[1]}" data-max="${it[2]}" data-inc="${it[3]}" data-sets="${it[4] || 3}">
               <span class="pr-text"><span class="pick-name">${escapeHtml(it[0])}</span><span class="pick-hint">${it[1]}–${it[2]} reps · +${fmtW(it[3])} kg</span></span>
               <span class="pick-add">${added ? icons.check : "+"}</span>
             </button>
@@ -1318,17 +1408,19 @@
           </div>`;
       });
     });
-    if (!total) html = '<div class="pick-none">Aucun exercice trouvé. Crée-le avec « exercice personnalisé ».</div>';
+    if (!total && !raw) html = '<div class="pick-none">Aucun exercice. Crée le tien avec le bouton ci-dessous.</div>';
     list.innerHTML = html;
     list.querySelectorAll(".pr-main").forEach((b) => b.addEventListener("click", () => addFromLibrary(b)));
     list.querySelectorAll(".pick-i").forEach((b) => b.addEventListener("click", () => openInfo(b.dataset.info)));
+    const pc = $("#pickCreate");
+    if (pc) pc.addEventListener("click", () => { closeOverlay("#pickSheet"); openExSheet(null, { name: raw }); });
   }
   function addFromLibrary(btn) {
     const name = btn.dataset.name;
     if (exOfDay(currentDayId).some((e) => normalize(e.name) === normalize(name))) { toast("Déjà dans la séance."); return; }
     state.exercises.push({
       id: uid(), dayId: currentDayId, name,
-      sets: 3, repMin: +btn.dataset.min, repMax: +btn.dataset.max, increment: +btn.dataset.inc, sessions: []
+      sets: +btn.dataset.sets || 3, repMin: +btn.dataset.min, repMax: +btn.dataset.max, increment: +btn.dataset.inc, sessions: []
     });
     if (state.demo) state.demo = false;
     save();
@@ -1341,12 +1433,15 @@
   $("#pickDone").addEventListener("click", () => { closeOverlay("#pickSheet"); if (currentDayId) renderDay(currentDayId); });
 
   // ================= FICHE =================
-  function openInfo(name) {
+  function openInfo(name, note) {
     const d = descOf(name);
-    if (!d) return;
+    if (!d && !note) return;
     $("#infoTitle").textContent = name;
-    $("#infoMuscle").textContent = d[0];
-    $("#infoBody").textContent = d[1];
+    $("#infoMuscle").textContent = d ? d[0] : "Ta note";
+    $("#infoBody").textContent = d ? d[1] : note;
+    const n = $("#infoNote");
+    n.hidden = !(d && note);
+    n.textContent = d && note ? "Ta note : " + note : "";
     openOverlay("#infoSheet");
   }
   $("#infoClose").addEventListener("click", () => closeOverlay("#infoSheet"));
@@ -1461,11 +1556,12 @@
   function updateSetsSeg() {
     $("#setsSeg").querySelectorAll("button").forEach((b) => b.classList.toggle("active", +b.dataset.sets === sheetSets));
   }
-  function openExSheet(exId) {
+  function openExSheet(exId, preset) {
     editingExId = exId || null;
     const ex = exId ? getEx(exId) : null;
     $("#exSheetTitle").textContent = ex ? "Modifier l'exercice" : "Nouvel exercice";
-    $("#exName").value = ex ? ex.name : "";
+    $("#exName").value = ex ? ex.name : (preset && preset.name) || "";
+    $("#exNote").value = ex && ex.note ? ex.note : "";
     $("#repMin").value = ex ? ex.repMin : 6;
     $("#repMax").value = ex ? ex.repMax : 8;
     $("#increment").value = ex ? ex.increment : 2.5;
@@ -1474,7 +1570,7 @@
     $("#exErr").textContent = "";
     $("#exDeleteBtn").hidden = !ex;
     openOverlay("#exSheet");
-    if (!ex) setTimeout(() => $("#exName").focus(), 200);
+    if (!ex && !(preset && preset.name)) setTimeout(() => $("#exName").focus(), 200);
   }
   $("#setsSeg").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { sheetSets = +b.dataset.sets; updateSetsSeg(); }));
   $("#exSaveBtn").addEventListener("click", () => {
@@ -1486,11 +1582,17 @@
     if (!name) { $("#exErr").textContent = "Donne un nom à l'exercice."; return; }
     if (!dayId) { $("#exErr").textContent = "Crée d'abord une séance."; return; }
     const wasEditing = editingExId;
+    const dup = state.exercises.some((e) => e.dayId === dayId && e.id !== wasEditing && normalize(e.name) === normalize(name));
+    if (dup) { $("#exErr").textContent = "Cet exercice est déjà dans cette séance."; return; }
+    const note = $("#exNote").value.trim();
     if (wasEditing) {
       const ex = getEx(wasEditing);
       ex.name = name; ex.dayId = dayId; ex.sets = sheetSets; ex.repMin = repMin; ex.repMax = repMax; ex.increment = increment;
+      if (note) ex.note = note; else delete ex.note;
     } else {
-      state.exercises.push({ id: uid(), dayId, name, sets: sheetSets, repMin, repMax, increment, sessions: [] });
+      const ex = { id: uid(), dayId, name, sets: sheetSets, repMin, repMax, increment, sessions: [] };
+      if (note) ex.note = note;
+      state.exercises.push(ex);
       if (state.demo) state.demo = false;
     }
     save();
