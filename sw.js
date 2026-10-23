@@ -1,7 +1,8 @@
 // Carnet de Charge : fonctionnement hors ligne.
 // Tout est servi depuis le cache, puis mis à jour en arrière-plan :
 // une nouvelle version publiée apparaît au lancement suivant.
-const CACHE = "carnet-v1";
+// messages.json est toujours lu sur le réseau (jamais depuis le cache).
+const CACHE = "carnet-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -28,15 +29,15 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  const isFont = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
-  if (url.origin !== self.location.origin && !isFont) return;
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith("/messages.json")) return;
 
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
-      const cached = await cache.match(req, { ignoreSearch: !isFont });
+      const cached = await cache.match(req, { ignoreSearch: true });
       const network = fetch(req)
         .then((res) => {
-          if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone());
+          if (res && res.ok) cache.put(req, res.clone());
           return res;
         })
         .catch(() => cached);
