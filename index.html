@@ -263,6 +263,20 @@
   .chips button { border: 0; background: var(--fill); border-radius: 999px; padding: 7px 14px; font-size: 15px; }
   .chips button:active { background: var(--fill-2); }
 
+  /* ---------- interrupteur et jours ---------- */
+  .switch { position: relative; width: 51px; height: 31px; flex: 0 0 auto; }
+  .switch input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+  .switch .track { position: absolute; inset: 0; border-radius: 999px; background: var(--fill-2); transition: background .2s; pointer-events: none; }
+  .switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .2); transition: transform .2s; }
+  .switch input:checked + .track { background: var(--go); }
+  .switch input:checked + .track::after { transform: translateX(20px); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--tint); outline-offset: 2px; }
+  .switch input:disabled + .track { opacity: .5; }
+  .daychips { position: relative; display: flex; gap: 6px; padding: 10px 16px 12px; }
+  .daychips::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: 1px solid var(--sep); }
+  .daychips button { flex: 1; min-width: 0; height: 38px; border: 0; border-radius: 10px; background: var(--fill); font-size: 14px; font-weight: 600; color: var(--label); }
+  .daychips button.on { background: var(--tint); color: var(--tint-ink); }
+
   /* ---------- courbe ---------- */
   .chart { position: relative; touch-action: pan-y; border-radius: 8px; }
   .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -534,7 +548,11 @@
 (function () {
   const STORE_KEY = "carnet_de_charge_v1";
   const THEME_KEY = "carnet_de_charge_theme";
-  const APP_VERSION = "3";
+  const APP_VERSION = "3.1";
+  // Serveur de notifications (Cloudflare Worker, dossier push-server/) et sa clé publique VAPID.
+  const PUSH_URL = "";
+  const VAPID_PUBLIC = "BJe3h7MBY-cXjWLfYgRnOOoqTC7G49_U2kvYG-ivDQ4wdaKEh2MDYg_czeyD0EPa6Ifnc1K0mh1A7ZOodGU1alI";
+  let syncTimer = null;
 
   // ---------- répertoire : [nom, reps min, reps max, palier kg] ----------
   const LIBRARY = [
@@ -648,7 +666,14 @@
     try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
     return null;
   }
-  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+    // Le serveur de notifications connaît le pseudo, les rappels et la prochaine séance : on le tient à jour.
+    if (PUSH_URL && state && state.notif && state.notif.on) {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => syncPush(false), 1500);
+    }
+  }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
   function seed() {
@@ -733,6 +758,14 @@
     });
     if (!st.profile || typeof st.profile !== "object") st.profile = { name: "" };
     if (!Array.isArray(st.seenMsgs)) st.seenMsgs = [];
+    if (!st.notif || typeof st.notif !== "object") st.notif = { on: false };
+    const rem = st.notif.reminder || {};
+    st.notif.on = !!st.notif.on;
+    st.notif.reminder = {
+      on: !!rem.on,
+      days: Array.isArray(rem.days) ? rem.days.filter((d) => d >= 0 && d <= 6) : [1, 2, 3, 4, 5],
+      time: /^([01]\d|2[0-3]):[0-5]\d$/.test(rem.time) ? rem.time : "18:00"
+    };
     return st;
   }
 
@@ -785,6 +818,7 @@
   function exOfDay(dayId) { return state.exercises.filter((e) => e.dayId === dayId); }
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
   function plural(n, word) { return n + " " + word + (n > 1 ? "s" : ""); }
+  function trainings(n) { return n > 1 ? `${n} entraînements notés` : `${n} entraînement noté`; }
 
   // Séries
   function topW(s) { return s.sets && s.sets.length ? Math.max(...s.sets.map((x) => x.w)) : 0; }
@@ -1001,7 +1035,7 @@
     const se = $("#startEmpty");
     if (se) se.addEventListener("click", () => {
       confirmAction("Partir de zéro ?", "Les séances et exercices d'exemple seront retirés. Tu crées ensuite tes propres séances.", () => {
-        state = normalizeState({ days: [], exercises: [], profile: state.profile, seenMsgs: state.seenMsgs }); save(); renderHome();
+        state = normalizeState({ days: [], exercises: [], profile: state.profile, seenMsgs: state.seenMsgs, notif: state.notif }); save(); renderHome();
       }, "Partir de zéro");
     });
     const ib = $("#installBtn");
@@ -1470,12 +1504,14 @@
           <button data-t="dark" class="${th === "dark" ? "on" : ""}">Sombre</button>
         </span></div></div>
 
+      ${notifSectionHTML()}
+
       <h2 class="sh">Mes données</h2>
       <div class="group">
         <button class="row row-action" id="exportBtn">Télécharger une sauvegarde</button>
         <button class="row row-action" id="importBtn">Restaurer une sauvegarde</button>
       </div>
-      <p class="sf">${plural(state.days.length, "séance")}, ${plural(state.exercises.length, "exercice")} et ${plural(nSess, "entraînement noté")}${nSess > 1 ? "s" : ""}, enregistrés sur ce téléphone. Fais une sauvegarde de temps en temps pour tout récupérer si tu changes de téléphone.</p>
+      <p class="sf">${plural(state.days.length, "séance")}, ${plural(state.exercises.length, "exercice")} et ${trainings(nSess)}, enregistrés sur ce téléphone. Fais une sauvegarde de temps en temps pour tout récupérer si tu changes de téléphone.</p>
 
       <h2 class="sh">Installer l'appli</h2>
       <div class="group pad"><ol class="steps">
@@ -1494,7 +1530,143 @@
     }));
     $("#exportBtn").addEventListener("click", exportData);
     $("#importBtn").addEventListener("click", () => $("#importFile").click());
+    bindNotifSection();
     observeTitle();
+  }
+
+  // ================= NOTIFICATIONS =================
+  function b64uToBytes(s) {
+    s = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    const bin = atob(s), out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function isIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
+  // "ok" | "install" (iPhone : installer d'abord) | "no" (navigateur incompatible) | "off" (serveur pas encore branché)
+  function pushSupport() {
+    if (!PUSH_URL) return "off";
+    if (isIOS() && !isStandalone()) return "install";
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return "no";
+    return "ok";
+  }
+  // Prochaine séance du cycle : celle qui suit la dernière faite, dans l'ordre de la liste.
+  function nextDayName() {
+    if (!state.days.length) return "";
+    let lastId = null, lastDate = "";
+    state.days.forEach((d) => { const ld = lastDateOfDay(d.id); if (ld && ld >= lastDate) { lastDate = ld; lastId = d.id; } });
+    if (!lastId) return state.days[0].name;
+    return state.days[(state.days.findIndex((d) => d.id === lastId) + 1) % state.days.length].name;
+  }
+  async function currentSub() {
+    try { const reg = await navigator.serviceWorker.ready; return await reg.pushManager.getSubscription(); } catch (e) { return null; }
+  }
+  async function syncPush(welcome) {
+    if (!PUSH_URL || !state.notif.on || !("serviceWorker" in navigator)) return false;
+    const sub = await currentSub();
+    if (!sub) return false;
+    try {
+      const res = await fetch(PUSH_URL + "/subscribe", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscription: sub.toJSON(), name: state.profile.name || "", reminder: state.notif.reminder,
+          tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris", next: nextDayName(), welcome: !!welcome
+        })
+      });
+      return res.ok;
+    } catch (e) { return false; }
+  }
+  async function enablePush() {
+    let perm;
+    try { perm = await Notification.requestPermission(); } catch (e) { perm = "default"; }
+    if (perm !== "granted") {
+      state.notif.on = false; save(); renderSettings();
+      toast(perm === "denied" ? "Notifications refusées. Autorise-les dans les réglages du téléphone." : "Notifications non activées.");
+      return;
+    }
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(VAPID_PUBLIC) });
+    } catch (e) {
+      state.notif.on = false; save(); renderSettings();
+      toast("Impossible d'activer les notifications sur ce téléphone.");
+      return;
+    }
+    state.notif.on = true;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+    const ok = await syncPush(true);
+    renderSettings();
+    toast(ok ? "Notifications activées." : "Activées, mais le serveur n'a pas répondu. Réessaie avec du réseau.");
+  }
+  async function disablePush() {
+    state.notif.on = false; save();
+    const sub = await currentSub();
+    if (sub) {
+      fetch(PUSH_URL + "/unsubscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) }).catch(() => {});
+      try { await sub.unsubscribe(); } catch (e) {}
+    }
+    renderSettings();
+    toast("Notifications désactivées.");
+  }
+  async function testPush() {
+    const sub = await currentSub();
+    if (!sub) { toast("Pas d'abonnement sur ce téléphone. Réactive les notifications."); return; }
+    await syncPush(false);
+    try {
+      const res = await fetch(PUSH_URL + "/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+      const j = await res.json().catch(() => ({}));
+      toast(j.ok ? "Notification envoyée. Elle arrive dans quelques secondes." : `Échec de l'envoi${j.status ? " (code " + j.status + ")" : ""}.`);
+    } catch (e) { toast("Le serveur ne répond pas. Vérifie ta connexion."); }
+  }
+  const DAY_CHIPS = [[1, "Lu", "lundi"], [2, "Ma", "mardi"], [3, "Me", "mercredi"], [4, "Je", "jeudi"], [5, "Ve", "vendredi"], [6, "Sa", "samedi"], [0, "Di", "dimanche"]];
+  function notifSectionHTML() {
+    const sup = pushSupport();
+    if (sup === "off") return "";
+    let body;
+    if (sup === "install") {
+      body = `<div class="group pad chart-empty">Sur iPhone, installe d'abord l'appli sur ton écran d'accueil (voir plus bas), puis ouvre-la depuis l'icône pour activer les notifications.</div>`;
+    } else if (sup === "no") {
+      body = `<div class="group pad chart-empty">Ce navigateur ne gère pas les notifications. Installe l'appli sur ton écran d'accueil et ouvre-la depuis l'icône.</div>`;
+    } else if (Notification.permission === "denied") {
+      body = `<div class="group pad chart-empty">Les notifications sont bloquées pour cette appli. Autorise-les dans les réglages du téléphone, puis reviens ici.</div>`;
+    } else {
+      const n = state.notif, r = n.reminder;
+      const sw = (id, on, label) => `<label class="row"><span class="row-title" style="flex:1">${label}</span><span class="switch"><input type="checkbox" id="${id}" ${on ? "checked" : ""}><span class="track"></span></span></label>`;
+      body = `<div class="group">${sw("notifOn", n.on, "Activer les notifications")}`;
+      if (n.on) {
+        body += sw("remOn", r.on, "Rappel d'entraînement");
+        if (r.on) {
+          body += `<div class="daychips" id="remDays" role="group" aria-label="Jours du rappel">${DAY_CHIPS.map(([v, short, long]) =>
+            `<button type="button" data-d="${v}" class="${r.days.includes(v) ? "on" : ""}" aria-pressed="${r.days.includes(v)}" aria-label="${long}">${short}</button>`).join("")}</div>
+            <label class="row form-row"><span class="row-title">Heure</span><input type="time" id="remTime" class="date-in" step="900" value="${r.time}"></label>`;
+        }
+        body += `<button class="row row-action" id="notifTest">Envoyer une notification de test</button>`;
+      }
+      body += `</div>`;
+      const next = nextDayName();
+      body += `<p class="sf">${!n.on
+        ? "Rappels d'entraînement et messages de l'appli, même quand elle est fermée."
+        : r.on
+          ? `Rappel vers ${r.time}${r.days.length ? "" : " (choisis au moins un jour)"}, avec ta prochaine séance du cycle${next ? " : " + escapeHtml(next) : ""}. Tu reçois aussi les messages de l'appli.`
+          : "Tu reçois les messages de l'appli. Active le rappel pour être prévenu les jours d'entraînement."}</p>`;
+    }
+    return `<h2 class="sh">Notifications</h2>${body}`;
+  }
+  function bindNotifSection() {
+    const on = $("#notifOn");
+    if (on) on.addEventListener("change", () => { on.disabled = true; if (on.checked) enablePush(); else disablePush(); });
+    const rem = $("#remOn");
+    if (rem) rem.addEventListener("change", () => { state.notif.reminder.on = rem.checked; save(); renderSettings(); });
+    main.querySelectorAll("#remDays [data-d]").forEach((b) => b.addEventListener("click", () => {
+      const d = +b.dataset.d, days = state.notif.reminder.days;
+      state.notif.reminder.days = days.includes(d) ? days.filter((x) => x !== d) : days.concat(d);
+      save(); renderSettings();
+    }));
+    const tm = $("#remTime");
+    if (tm) tm.addEventListener("change", () => { if (/^\d{2}:\d{2}$/.test(tm.value)) { state.notif.reminder.time = tm.value; save(); renderSettings(); } });
+    const tb = $("#notifTest");
+    if (tb) tb.addEventListener("click", testPush);
   }
 
   async function exportData() {
@@ -1528,8 +1700,14 @@
       if (!data || !Array.isArray(data.days) || !Array.isArray(data.exercises)) { toast("Ce fichier n'est pas une sauvegarde de Carnet de Charge."); return; }
       const n = data.exercises.reduce((acc, x) => acc + ((x.sessions && x.sessions.length) || 0), 0);
       confirmAction("Restaurer la sauvegarde ?",
-        `Elle contient ${plural(data.days.length, "séance")} et ${plural(n, "entraînement noté")}${n > 1 ? "s" : ""}. Elle remplace tout ce qui est dans l'appli.`,
-        () => { state = normalizeState(data); save(); renderHome(); toast("Sauvegarde restaurée."); }, "Restaurer");
+        `Elle contient ${plural(data.days.length, "séance")} et ${trainings(n)}. Elle remplace tout ce qui est dans l'appli.`,
+        () => {
+          // L'abonnement aux notifications appartient au téléphone, pas à la sauvegarde.
+          const keepNotif = state.notif;
+          state = normalizeState(data);
+          state.notif = keepNotif;
+          save(); renderHome(); toast("Sauvegarde restaurée.");
+        }, "Restaurer");
     };
     reader.onerror = () => toast("Impossible de lire ce fichier.");
     reader.readAsText(f);

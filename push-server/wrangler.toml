@@ -1,0 +1,19 @@
+# Serveur de notifications de Carnet de Charge (Cloudflare Workers, offre gratuite).
+# La clé privée VAPID n'est PAS ici : elle est stockée comme secret Cloudflare
+# (wrangler secret put VAPID_PRIVATE_KEY).
+name = "carnet-de-charge-push"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+VAPID_PUBLIC_KEY = "BJe3h7MBY-cXjWLfYgRnOOoqTC7G49_U2kvYG-ivDQ4wdaKEh2MDYg_czeyD0EPa6Ifnc1K0mh1A7ZOodGU1alI"
+VAPID_SUBJECT = "https://zolomach.github.io/carnet-de-charge/"
+MESSAGES_URL = "https://zolomach.github.io/carnet-de-charge/messages.json"
+ALLOWED_ORIGINS = "https://zolomach.github.io,http://localhost:5173"
+
+[[kv_namespaces]]
+binding = "SUBS"
+id = "A_REMPLIR_APRES_wrangler_kv_namespace_create"

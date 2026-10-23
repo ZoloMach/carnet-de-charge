@@ -2,7 +2,8 @@
 // Tout est servi depuis le cache, puis mis à jour en arrière-plan :
 // une nouvelle version publiée apparaît au lancement suivant.
 // messages.json est toujours lu sur le réseau (jamais depuis le cache).
-const CACHE = "carnet-v2";
+// Il affiche aussi les notifications envoyées par le serveur (push-server/).
+const CACHE = "carnet-v3";
 const SHELL = [
   "./",
   "./index.html",
@@ -22,6 +23,30 @@ self.addEventListener("activate", (event) => {
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; }
+  catch (e) { data = { body: event.data ? event.data.text() : "" }; }
+  event.waitUntil(self.registration.showNotification(data.title || "Carnet de Charge", {
+    body: data.body || "",
+    icon: "icons/icon-192.png",
+    badge: "icons/icon-192.png",
+    tag: data.tag || undefined,
+    data: { url: data.url || "./" }
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || "./", self.registration.scope).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) if (w.url.startsWith(self.registration.scope) && "focus" in w) return w.focus();
+      return self.clients.openWindow(target);
+    })
   );
 });
 
