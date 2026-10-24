@@ -390,6 +390,42 @@
   .action-cancel { margin-top: 8px; background: var(--card); border-radius: 14px; color: var(--tint); font-weight: 600; }
   @media (min-width: 640px) { .action { max-width: 420px; } }
 
+  /* ---------- nouveautés ---------- */
+  .overlay.center { align-items: center; padding: 16px; padding-top: calc(16px + env(safe-area-inset-top, 0px)); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .news {
+    width: 100%; max-width: 420px; max-height: 100%; overflow-y: auto; overscroll-behavior: contain;
+    background: var(--card); border-radius: 22px; padding: 22px 20px 20px;
+    transform: scale(.96); transition: transform .22s cubic-bezier(.2, .8, .2, 1);
+  }
+  .overlay.open .news { transform: none; }
+  .news-kicker { font-size: 13px; font-weight: 600; color: var(--label-2); text-align: center; }
+  .news-title { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; text-align: center; margin: 4px 0 0; text-wrap: balance; }
+  .news-video {
+    position: relative; height: min(54vh, 500px); aspect-ratio: 9 / 16; max-width: 100%;
+    margin: 16px auto 18px; border-radius: 16px; overflow: hidden; background: #000;
+  }
+  .news-video video { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .news-video .failed { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; color: #fff; font-size: 15px; }
+  .sound-btn {
+    position: absolute; right: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px;
+    border: 0; border-radius: 999px; padding: 8px 12px; font-size: 14px; font-weight: 600;
+    background: rgba(0, 0, 0, .58); color: #fff; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+  .sound-btn svg { width: 18px; height: 18px; }
+  .news-hero { margin: 18px 0 6px; padding: 18px 16px 16px; border-radius: 16px; background: var(--go-bg); text-align: center; }
+  .news-hero .bell { width: 52px; height: 52px; margin: 0 auto 10px; border-radius: 14px; display: grid; place-items: center; background: var(--go); color: #fff; }
+  .news-hero .bell svg { width: 30px; height: 30px; }
+  .news-hero h3 { margin: 0 0 6px; font-size: 21px; font-weight: 700; letter-spacing: -.01em; }
+  .news-hero p { margin: 0 0 14px; font-size: 15px; line-height: 1.45; color: var(--label); }
+  .news-hero .btn { min-height: 46px; }
+  .news-list { list-style: none; margin: 14px 0 18px; padding: 0; }
+  .news-list li { display: flex; gap: 14px; align-items: flex-start; padding: 11px 0; }
+  .news-list li + li { border-top: 1px solid var(--sep); }
+  .news-list .ni { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 9px; background: var(--fill); display: grid; place-items: center; color: var(--label); }
+  .news-list .ni svg { width: 19px; height: 19px; }
+  .news-list b { display: block; font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+  .news-list span { font-size: 14px; line-height: 1.4; color: var(--label-2); }
+
   .toast {
     position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); z-index: 60;
     transform: translateX(-50%) translateY(10px); opacity: 0; pointer-events: none;
@@ -529,6 +565,52 @@
   </div>
 </div>
 
+<!-- Nouveautés : vidéo puis notes de mise à jour, une fois par version -->
+<div class="overlay center" id="newsSheet">
+  <div class="news" role="dialog" aria-modal="true" aria-labelledby="newsTitle">
+    <div id="newsStep1">
+      <div class="news-kicker">Mise à jour</div>
+      <h2 class="news-title" id="newsTitle">C'est l'heure d'aller t'entraîner.</h2>
+      <div class="news-video" id="newsVideoBox">
+        <video id="newsVideo" muted playsinline loop preload="metadata" poster="media/nouveautes.jpg" aria-label="Vidéo de la mise à jour"></video>
+        <button class="sound-btn" id="soundBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+          <span id="soundLabel">Activer le son</span>
+        </button>
+      </div>
+      <button class="btn btn-primary" id="newsNext">Voir les nouveautés</button>
+    </div>
+
+    <div id="newsStep2" hidden>
+      <div class="news-kicker">Version 3.2</div>
+      <h2 class="news-title">Quoi de neuf</h2>
+      <div class="news-hero">
+        <div class="bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div>
+        <h3>Les notifications sont là</h3>
+        <p>Un rappel les jours où tu t'entraînes, avec ta prochaine séance (« Au programme : Legs »), et les messages de l'appli, même quand elle est fermée.</p>
+        <button class="btn btn-primary" id="newsNotif">Activer les notifications</button>
+      </div>
+      <ul class="news-list">
+        <li><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>
+          <div><b>Une charge par série</b><span>60 kg × 6 puis 57,5 kg × 7 : chaque série a sa charge. Ajoute ou retire des séries en pleine séance.</span></div></li>
+        <li><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+          <div><b>Corrige une séance passée</b><span>Touche une ligne de l'historique pour changer la date, les charges ou les reps.</span></div></li>
+        <li><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></span>
+          <div><b>Un seul suivi entre séances</b><span>Le couché du Push et celui de l'Upper partagent leur historique. Pareil pour Legs et Lower.</span></div></li>
+        <li><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M3 9h18"/></svg></span>
+          <div><b>Nouveau design</b><span>Plus simple et plus lisible, dans le style de l'iPhone, en clair ou en sombre.</span></div></li>
+        <li><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16M8 4 4 8M8 4l4 4M16 20V4M16 20l-4-4M16 20l4-4"/></svg></span>
+          <div><b>Réorganise tes séances</b><span>Le bouton Modifier change l'ordre des séances et des exercices.</span></div></li>
+        <li><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+          <div><b>Tes propres exercices</b><span>Tape un nom dans le répertoire pour le créer, avec une note si tu veux.</span></div></li>
+        <li><span class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
+          <div><b>Onglet Réglages</b><span>Ton pseudo, le thème, et la sauvegarde de tes données.</span></div></li>
+      </ul>
+      <button class="btn btn-primary" id="newsDone">C'est parti</button>
+    </div>
+  </div>
+</div>
+
 <!-- Confirmation -->
 <div class="overlay" id="confirmSheet">
   <div class="action" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
@@ -548,7 +630,9 @@
 (function () {
   const STORE_KEY = "carnet_de_charge_v1";
   const THEME_KEY = "carnet_de_charge_theme";
-  const APP_VERSION = "3.1";
+  const APP_VERSION = "3.2";
+  // Les nouveautés (vidéo + notes de version) s'affichent une fois quand cette valeur change.
+  const NEWS_VERSION = "3.2";
   // Serveur de notifications (Cloudflare Worker, dossier push-server/) et sa clé publique VAPID.
   const PUSH_URL = "https://carnet-de-charge-push.supermachmouch.workers.dev";
   const VAPID_PUBLIC = "BJe3h7MBY-cXjWLfYgRnOOoqTC7G49_U2kvYG-ivDQ4wdaKEh2MDYg_czeyD0EPa6Ifnc1K0mh1A7ZOodGU1alI";
@@ -1035,7 +1119,7 @@
     const se = $("#startEmpty");
     if (se) se.addEventListener("click", () => {
       confirmAction("Partir de zéro ?", "Les séances et exercices d'exemple seront retirés. Tu crées ensuite tes propres séances.", () => {
-        state = normalizeState({ days: [], exercises: [], profile: state.profile, seenMsgs: state.seenMsgs, notif: state.notif }); save(); renderHome();
+        state = normalizeState({ days: [], exercises: [], profile: state.profile, seenMsgs: state.seenMsgs, notif: state.notif, lastSeenNews: state.lastSeenNews }); save(); renderHome();
       }, "Partir de zéro");
     });
     const ib = $("#installBtn");
@@ -1654,7 +1738,7 @@
           ? `Rappel vers ${r.time}${r.days.length ? "" : " (choisis au moins un jour)"}, avec ta prochaine séance du cycle${next ? " : " + escapeHtml(next) : ""}. Tu reçois aussi les messages de l'appli.`
           : "Tu reçois les messages de l'appli. Active le rappel pour être prévenu les jours d'entraînement."}</p>`;
     }
-    return `<h2 class="sh">Notifications</h2>${body}`;
+    return `<h2 class="sh" id="notifSection">Notifications</h2>${body}`;
   }
   function bindNotifSection() {
     const on = $("#notifOn");
@@ -1909,11 +1993,58 @@
   });
   $("#exCancelBtn").addEventListener("click", () => { closeOverlay("#exSheet"); editingExId = null; });
 
+  // ================= NOUVEAUTÉS =================
+  const newsVideo = $("#newsVideo");
+  function setSoundLabel() { $("#soundLabel").textContent = newsVideo.muted ? "Activer le son" : "Couper le son"; }
+  function maybeShowNews() {
+    if (state.lastSeenNews === NEWS_VERSION) return;
+    const name = (state.profile.name || "").trim();
+    $("#newsTitle").textContent = name ? `Va t'entraîner, mon petit ${name}.` : "C'est l'heure d'aller t'entraîner.";
+    $("#newsStep1").hidden = false;
+    $("#newsStep2").hidden = true;
+    $("#newsNotif").textContent = state.notif.on ? "Voir mes réglages" : pushSupport() === "install" ? "Comment les activer" : "Activer les notifications";
+    if (!newsVideo.getAttribute("src")) newsVideo.setAttribute("src", "media/nouveautes.mp4");
+    newsVideo.muted = true; setSoundLabel();
+    openOverlay("#newsSheet");
+    newsVideo.play().catch(() => {});
+  }
+  function closeNews(goToNotif) {
+    newsVideo.pause();
+    state.lastSeenNews = NEWS_VERSION; save();
+    closeOverlay("#newsSheet");
+    if (goToNotif) {
+      editMode = false; renderSettings();
+      setTimeout(() => { const s = $("#notifSection"); if (s) s.scrollIntoView({ block: "start", behavior: "smooth" }); }, 80);
+    }
+  }
+  newsVideo.addEventListener("error", () => {
+    if ($("#newsVideoBox .failed")) return;
+    $("#newsVideoBox").insertAdjacentHTML("beforeend", `<div class="failed">La vidéo a besoin de réseau pour se charger.</div>`);
+    $("#soundBtn").hidden = true;
+  });
+  $("#soundBtn").addEventListener("click", () => {
+    newsVideo.muted = !newsVideo.muted;
+    if (!newsVideo.muted) { if (newsVideo.ended || newsVideo.currentTime > 12.5) newsVideo.currentTime = 0; newsVideo.play().catch(() => {}); }
+    setSoundLabel();
+  });
+  $("#newsNext").addEventListener("click", () => {
+    newsVideo.pause();
+    $("#newsStep1").hidden = true; $("#newsStep2").hidden = false;
+    $(".news").scrollTop = 0;
+  });
+  $("#newsNotif").addEventListener("click", () => closeNews(true));
+  $("#newsDone").addEventListener("click", () => closeNews(false));
+
   // ---------- feuilles / toast ----------
   function openOverlay(sel) { $(sel).classList.add("open"); }
   function closeOverlay(sel) { $(sel).classList.remove("open"); }
-  document.querySelectorAll(".overlay").forEach((ov) => ov.addEventListener("click", (e) => { if (e.target === ov) ov.classList.remove("open"); }));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelectorAll(".overlay.open").forEach((ov) => ov.classList.remove("open")); });
+  // La fenêtre des nouveautés ne se ferme que par ses boutons (pour ne pas la rater d'un geste).
+  document.querySelectorAll(".overlay:not(#newsSheet)").forEach((ov) => ov.addEventListener("click", (e) => { if (e.target === ov) ov.classList.remove("open"); }));
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if ($("#newsSheet").classList.contains("open")) { closeNews(false); return; }
+    document.querySelectorAll(".overlay.open").forEach((ov) => ov.classList.remove("open"));
+  });
   let toastT;
   function toast(msg) {
     const t = $("#toast"); t.textContent = msg; t.classList.add("show");
@@ -1937,6 +2068,7 @@
 
   renderHome();
   fetchMessages();
+  setTimeout(maybeShowNews, 400);
   window.addEventListener("online", fetchMessages);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") fetchMessages(); });
 
