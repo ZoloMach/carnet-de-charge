@@ -1616,7 +1616,10 @@
     try {
       const res = await fetch(PUSH_URL + "/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: sub.endpoint }) });
       const j = await res.json().catch(() => ({}));
-      toast(j.ok ? "Notification envoyée. Elle arrive dans quelques secondes." : `Échec de l'envoi${j.status ? " (code " + j.status + ")" : ""}.`);
+      if (j.ok) toast("Notification envoyée. Elle arrive dans quelques secondes.");
+      else if (j.error === "cle_manquante") toast("Le serveur de notifications n'est pas encore prêt. Réessaie un peu plus tard.");
+      else if (j.error === "abonnement inconnu") { await syncPush(false); toast("Abonnement remis à jour. Appuie encore une fois sur Test."); }
+      else toast(`Échec de l'envoi${j.status ? " (code " + j.status + ")" : j.error ? " (" + j.error + ")" : ""}.`);
     } catch (e) { toast("Le serveur ne répond pas. Vérifie ta connexion."); }
   }
   const DAY_CHIPS = [[1, "Lu", "lundi"], [2, "Ma", "mardi"], [3, "Me", "mercredi"], [4, "Je", "jeudi"], [5, "Ve", "vendredi"], [6, "Sa", "samedi"], [0, "Di", "dimanche"]];

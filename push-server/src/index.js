@@ -148,7 +148,7 @@ async function handleSubscribe(req, env, ctx) {
     updated: Date.now()
   };
   await env.SUBS.put(key, JSON.stringify(rec));
-  if (!prev && body.welcome !== false) {
+  if (!prev && body.welcome !== false && env.VAPID_PRIVATE_KEY) {
     ctx.waitUntil(sendPush(env, sub, {
       title: "Notifications activées",
       body: "Tu recevras ici tes rappels d'entraînement et les messages de l'appli.",
@@ -168,6 +168,7 @@ async function handleUnsubscribe(req, env) {
 async function handleTest(req, env) {
   const body = await req.json().catch(() => null);
   if (!body || typeof body.endpoint !== "string") return json(req, env, 400, { error: "adresse manquante" });
+  if (!env.VAPID_PRIVATE_KEY) return json(req, env, 503, { ok: false, error: "cle_manquante" });
   const key = await subKey(body.endpoint);
   const rec = await env.SUBS.get(key, "json");
   if (!rec) return json(req, env, 404, { error: "abonnement inconnu" });
@@ -272,13 +273,21 @@ export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req, env) });
-    if (req.method === "GET" && url.pathname === "/") return json(req, env, 200, { ok: true, service: "carnet-de-charge-push" });
-    if (req.method === "POST" && url.pathname === "/subscribe") return handleSubscribe(req, env, ctx);
-    if (req.method === "POST" && url.pathname === "/unsubscribe") return handleUnsubscribe(req, env);
-    if (req.method === "POST" && url.pathname === "/test") return handleTest(req, env);
-    return json(req, env, 404, { error: "introuvable" });
+    try {
+      if (req.method === "GET" && url.pathname === "/") {
+        return json(req, env, 200, { ok: true, service: "carnet-de-charge-push", configured: !!env.VAPID_PRIVATE_KEY });
+      }
+      if (req.method === "POST" && url.pathname === "/subscribe") return await handleSubscribe(req, env, ctx);
+      if (req.method === "POST" && url.pathname === "/unsubscribe") return await handleUnsubscribe(req, env);
+      if (req.method === "POST" && url.pathname === "/test") return await handleTest(req, env);
+      return json(req, env, 404, { error: "introuvable" });
+    } catch (e) {
+      // Toujours répondre avec les en-têtes CORS, sinon l'appli croit que le serveur est injoignable.
+      return json(req, env, 500, { ok: false, error: "erreur_serveur", detail: String(e && e.message || e).slice(0, 200) });
+    }
   },
   async scheduled(event, env, ctx) {
+    if (!env.VAPID_PRIVATE_KEY) return;
     ctx.waitUntil((async () => {
       const subs = await allSubs(env);
       if (!subs.length) return;
