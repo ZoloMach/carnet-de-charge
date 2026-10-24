@@ -1,10 +1,11 @@
 // Carnet de Charge : fonctionnement hors ligne.
-// Tout est servi depuis le cache, puis mis à jour en arrière-plan :
-// une nouvelle version publiée apparaît au lancement suivant.
+// La page est d'abord demandée au réseau (3 s max), pour qu'une nouvelle version
+// arrive dès l'ouverture ; sans réseau, c'est la copie en cache qui s'affiche.
+// Les autres fichiers sont servis depuis le cache puis mis à jour en arrière-plan.
 // messages.json est toujours lu sur le réseau (jamais depuis le cache).
 // Il affiche aussi les notifications envoyées par le serveur (push-server/).
 // Les vidéos ne passent pas par le cache : Safari les lit par morceaux (requêtes Range).
-const CACHE = "carnet-v4";
+const CACHE = "carnet-v5";
 const SHELL = [
   "./",
   "./index.html",
@@ -57,6 +58,23 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.endsWith("/messages.json") || url.pathname.endsWith(".mp4")) return;
+
+  if (req.mode === "navigate") {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      try {
+        const res = await Promise.race([
+          fetch(req, { cache: "no-store" }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000))
+        ]);
+        if (res && res.ok) { cache.put("./index.html", res.clone()); return res; }
+        throw new Error("bad status");
+      } catch (e) {
+        return (await cache.match("./index.html")) || (await cache.match(req, { ignoreSearch: true })) || fetch(req);
+      }
+    })());
+    return;
+  }
 
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {

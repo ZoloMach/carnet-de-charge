@@ -630,7 +630,7 @@
 (function () {
   const STORE_KEY = "carnet_de_charge_v1";
   const THEME_KEY = "carnet_de_charge_theme";
-  const APP_VERSION = "3.2";
+  const APP_VERSION = "3.2.1";
   // Les nouveautés (vidéo + notes de version) s'affichent une fois quand cette valeur change.
   const NEWS_VERSION = "3.2";
   // Serveur de notifications (Cloudflare Worker, dossier push-server/) et sa clé publique VAPID.
@@ -1604,7 +1604,9 @@
         <li><b>Android (Chrome)</b> : menu ⋮, puis « Installer l'application ».</li>
       </ol></div>
       <p class="sf">Une fois installée, l'appli garde tes séances et fonctionne sans réseau.</p>
-      <p class="sf" style="margin-top:20px">Carnet de Charge · version ${APP_VERSION}</p>`;
+      <h2 class="sh">À propos</h2>
+      <div class="group"><button class="row" id="replayNews"><span class="row-main"><span class="row-title">Revoir les nouveautés</span></span>${chev}</button></div>
+      <p class="sf">Carnet de Charge · version ${APP_VERSION}</p>`;
 
     const pn = $("#profName");
     pn.addEventListener("change", () => { state.profile.name = pn.value.trim(); save(); toast(state.profile.name ? "Pseudo enregistré." : "Pseudo retiré."); });
@@ -1615,6 +1617,7 @@
     $("#exportBtn").addEventListener("click", exportData);
     $("#importBtn").addEventListener("click", () => $("#importFile").click());
     bindNotifSection();
+    $("#replayNews").addEventListener("click", () => maybeShowNews(true));
     observeTitle();
   }
 
@@ -1996,8 +1999,8 @@
   // ================= NOUVEAUTÉS =================
   const newsVideo = $("#newsVideo");
   function setSoundLabel() { $("#soundLabel").textContent = newsVideo.muted ? "Activer le son" : "Couper le son"; }
-  function maybeShowNews() {
-    if (state.lastSeenNews === NEWS_VERSION) return;
+  function maybeShowNews(force) {
+    if (!force && state.lastSeenNews === NEWS_VERSION) return;
     const name = (state.profile.name || "").trim();
     $("#newsTitle").textContent = name ? `Va t'entraîner, mon petit ${name}.` : "C'est l'heure d'aller t'entraîner.";
     $("#newsStep1").hidden = false;
@@ -2068,7 +2071,7 @@
 
   renderHome();
   fetchMessages();
-  setTimeout(maybeShowNews, 400);
+  setTimeout(() => maybeShowNews(false), 400);
   window.addEventListener("online", fetchMessages);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") fetchMessages(); });
 
