@@ -16,4 +16,4 @@ ALLOWED_ORIGINS = "https://zolomach.github.io,http://localhost:5173"
 
 [[kv_namespaces]]
 binding = "SUBS"
-id = "A_REMPLIR_APRES_wrangler_kv_namespace_create"
+id = "5a5406a266dd4f9dbdc5bedf2c80c003"
