@@ -1,0 +1,65 @@
+[
+  {
+    "id": "zolomach-2026-10-24",
+    "to": ["zolomach"],
+    "from": "ton coach",
+    "title": "Ton nouveau programme est prêt",
+    "text": "Push, Pull, Legs, Upper et Lower refaits avec tes exercices, les bonnes fourchettes de reps et des priorités pour les jours où tu manques de temps. Tout ton historique est gardé.",
+    "days": [
+      { "name": "Push", "exercises": [
+        { "name": "Développé couché", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 1 },
+        { "name": "Développé incliné haltères", "repMin": 6, "repMax": 8, "increment": 2, "prio": 1 },
+        { "name": "Écarté poulie bas → haut", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 2 },
+        { "name": "Écarté poulie haut → bas", "from": ["Écarté poulie haute"], "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 2 },
+        { "name": "Élévations latérales poulie", "repMin": 8, "repMax": 12, "increment": 1.25, "prio": 1 },
+        { "name": "Barre au front", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 2 },
+        { "name": "Extension triceps nuque poulie", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 2 },
+        { "name": "Pushdown unilatéral", "repMin": 6, "repMax": 8, "increment": 1.25, "prio": 3 },
+        { "name": "Crunch à la poulie", "repMin": 10, "repMax": 15, "increment": 2.5, "prio": 3 }
+      ]},
+      { "name": "Pull", "exercises": [
+        { "name": "Lombaires (extensions)", "repMin": 10, "repMax": 15, "increment": 2.5, "prio": 3, "note": "Échauffement léger, sans aller à l'échec." },
+        { "name": "Tractions lestées", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 1 },
+        { "name": "Tirage unilatéral à genou", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 2 },
+        { "name": "Rowing haltère", "repMin": 6, "repMax": 8, "increment": 2, "prio": 1 },
+        { "name": "Tirage horizontal (poulie basse)", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 2 },
+        { "name": "Oiseau à la poulie", "repMin": 8, "repMax": 12, "increment": 1.25, "prio": 2 },
+        { "name": "Élévations latérales poulie", "repMin": 8, "repMax": 12, "increment": 1.25, "prio": 2 },
+        { "name": "Curl incliné (banc)", "repMin": 6, "repMax": 8, "increment": 2, "prio": 1 },
+        { "name": "Curl marteau", "from": ["Bûcheron (avant-bras)"], "repMin": 6, "repMax": 8, "increment": 2, "prio": 3 }
+      ]},
+      { "name": "Legs", "exercises": [
+        { "name": "Squat", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 1 },
+        { "name": "Soulevé de terre roumain", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 1 },
+        { "name": "Squat bulgare", "repMin": 8, "repMax": 12, "increment": 2, "prio": 2, "note": "Reps par jambe." },
+        { "name": "Leg extension (quadriceps)", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 2 },
+        { "name": "Leg curl (ischios)", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 2 },
+        { "name": "Mollets debout", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 3, "note": "Pause d'une seconde en bas, en étirement." },
+        { "name": "Adducteurs (machine)", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 3 },
+        { "name": "Abducteurs (machine)", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 3 },
+        { "name": "Crunch à la poulie", "repMin": 10, "repMax": 15, "increment": 2.5, "prio": 3 }
+      ]},
+      { "name": "Upper", "exercises": [
+        { "name": "Développé couché", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 1 },
+        { "name": "Écarté poulie bas → haut", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 2 },
+        { "name": "Tractions lestées", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 1 },
+        { "name": "Tirage horizontal (poulie basse)", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 1 },
+        { "name": "Élévations latérales poulie", "repMin": 8, "repMax": 12, "increment": 1.25, "prio": 1 },
+        { "name": "Oiseau à la poulie", "repMin": 8, "repMax": 12, "increment": 1.25, "prio": 2 },
+        { "name": "Curl incliné (banc)", "repMin": 6, "repMax": 8, "increment": 2, "prio": 2 },
+        { "name": "Extension triceps nuque poulie", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 2 }
+      ]},
+      { "name": "Lower", "exercises": [
+        { "name": "Squat", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 1 },
+        { "name": "Soulevé de terre roumain", "repMin": 6, "repMax": 8, "increment": 2.5, "prio": 1 },
+        { "name": "Squat bulgare", "repMin": 8, "repMax": 12, "increment": 2, "prio": 2, "note": "Reps par jambe." },
+        { "name": "Leg extension (quadriceps)", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 2 },
+        { "name": "Leg curl (ischios)", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 2 },
+        { "name": "Mollets debout", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 3, "note": "Pause d'une seconde en bas, en étirement." },
+        { "name": "Adducteurs (machine)", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 3 },
+        { "name": "Abducteurs (machine)", "repMin": 8, "repMax": 12, "increment": 2.5, "prio": 3 },
+        { "name": "Crunch à la poulie", "repMin": 10, "repMax": 15, "increment": 2.5, "prio": 3 }
+      ]}
+    ]
+  }
+]

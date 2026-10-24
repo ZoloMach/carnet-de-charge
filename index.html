@@ -263,6 +263,15 @@
   .chips button { border: 0; background: var(--fill); border-radius: 999px; padding: 7px 14px; font-size: 15px; }
   .chips button:active { background: var(--fill-2); }
 
+  /* ---------- durée de séance et priorités ---------- */
+  .modebar { margin: 0 0 12px; }
+  .modebar .seg { display: flex; width: 100%; }
+  .modebar .seg button { flex: 1; padding: 7px 8px; }
+  .ptag { display: inline-block; margin-left: 7px; padding: 1px 6px 2px; border-radius: 5px; font-size: 11px; font-weight: 600; vertical-align: 2px; white-space: nowrap; }
+  .ptag.p1 { background: var(--label); color: var(--card); }
+  .ptag.p3 { color: var(--label-2); box-shadow: inset 0 0 0 1px var(--sep); }
+  .seg.wide3 button { padding: 6px 10px; }
+
   /* ---------- interrupteur et jours ---------- */
   .switch { position: relative; width: 51px; height: 31px; flex: 0 0 auto; }
   .switch input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
@@ -387,6 +396,7 @@
   .action-card p { margin: 0; font-size: 14px; color: var(--label-2); line-height: 1.4; }
   .action-card button, .action-cancel { width: 100%; min-height: 56px; border: 0; background: none; font-size: 19px; }
   .action-card button { color: var(--danger); }
+  .action-card button.safe { color: var(--tint); font-weight: 600; }
   .action-cancel { margin-top: 8px; background: var(--card); border-radius: 14px; color: var(--tint); font-weight: 600; }
   @media (min-width: 640px) { .action { max-width: 420px; } }
 
@@ -503,6 +513,8 @@
     <p class="sf">Même nom dans plusieurs séances = un seul historique (par exemple le couché en Push et en Upper).</p>
     <div class="group mt">
       <label class="row form-row"><span class="row-title">Séance</span><select id="exDay" class="row-input"></select></label>
+      <div class="row"><span class="row-title" style="flex:1">Priorité</span>
+        <span class="seg wide3" id="prioSeg" role="group" aria-label="Priorité"><button type="button" data-p="1">Essentiel</button><button type="button" data-p="2">Important</button><button type="button" data-p="3">Bonus</button></span></div>
       <div class="row"><span class="row-title" style="flex:1">Séries</span><span class="stepper-mini"><button type="button" id="setsDown" aria-label="Une série de moins">−</button><span id="setsVal">3</span><button type="button" id="setsUp" aria-label="Une série de plus">+</button></span></div>
       <label class="row form-row"><span class="row-title">Reps min</span><input type="text" inputmode="numeric" id="repMin" class="row-input" value="6"></label>
       <label class="row form-row"><span class="row-title">Reps max (pour monter)</span><input type="text" inputmode="numeric" id="repMax" class="row-input" value="8"></label>
@@ -630,7 +642,7 @@
 (function () {
   const STORE_KEY = "carnet_de_charge_v1";
   const THEME_KEY = "carnet_de_charge_theme";
-  const APP_VERSION = "3.2.1";
+  const APP_VERSION = "3.3";
   // Les nouveautés (vidéo + notes de version) s'affichent une fois quand cette valeur change.
   const NEWS_VERSION = "3.2";
   // Serveur de notifications (Cloudflare Worker, dossier push-server/) et sa clé publique VAPID.
@@ -643,16 +655,19 @@
     { cat: "Pectoraux", items: [
       ["Développé couché", 6, 8, 2.5], ["Développé incliné", 6, 8, 2.5], ["Développé incliné haltères", 6, 10, 2.5],
       ["Développé décliné", 6, 8, 2.5], ["Développé couché haltères", 6, 10, 2.5], ["Écarté haltères", 8, 12, 2.5],
-      ["Écarté à la poulie", 10, 15, 2.5], ["Écarté poulie haute", 10, 15, 2.5], ["Pompes", 8, 15, 2.5], ["Dips (pectoraux)", 6, 10, 2.5]
+      ["Écarté à la poulie", 10, 15, 2.5], ["Écarté poulie haute", 10, 15, 2.5], ["Écarté poulie bas → haut", 8, 12, 2.5],
+      ["Écarté poulie haut → bas", 8, 12, 2.5], ["Pompes", 8, 15, 2.5], ["Dips (pectoraux)", 6, 10, 2.5]
     ]},
     { cat: "Dos", items: [
       ["Tractions", 6, 10, 2.5], ["Tractions lestées", 5, 8, 2.5], ["Tirage vertical (poulie haute)", 8, 12, 2.5],
       ["Rowing barre", 6, 8, 5], ["Rowing haltère", 8, 10, 2.5], ["Tirage horizontal (poulie basse)", 8, 12, 2.5],
-      ["Rowing prise large", 8, 10, 2.5], ["Rowing prise serrée", 8, 10, 2.5],
+      ["Rowing prise large", 8, 10, 2.5], ["Rowing prise serrée", 8, 10, 2.5], ["Tirage unilatéral à genou", 6, 8, 2.5],
+      ["Lombaires (extensions)", 10, 15, 2.5],
       ["Soulevé de terre", 5, 8, 5], ["Shrugs (trapèzes)", 10, 15, 2.5], ["Pull-over", 10, 12, 2.5]
     ]},
     { cat: "Épaules", items: [
       ["Développé militaire", 6, 8, 2.5], ["Développé haltères (épaules)", 6, 10, 2.5], ["Élévations latérales", 10, 15, 1],
+      ["Élévations latérales poulie", 8, 12, 1.25],
       ["Élévations frontales", 10, 15, 1], ["Oiseau (deltoïde postérieur)", 12, 15, 1], ["Oiseau à la poulie", 12, 15, 1], ["Face pull", 12, 20, 2.5]
     ]},
     { cat: "Biceps", items: [
@@ -661,7 +676,8 @@
     ]},
     { cat: "Triceps", items: [
       ["Barre au front", 8, 12, 2.5], ["Extension triceps à la poulie", 10, 15, 2.5], ["Dips (triceps)", 6, 10, 2.5],
-      ["JM press", 8, 12, 2.5], ["Extension nuque haltère", 8, 12, 2.5], ["Kickback", 12, 15, 1]
+      ["JM press", 8, 12, 2.5], ["Extension nuque haltère", 8, 12, 2.5], ["Extension triceps nuque poulie", 6, 8, 2.5],
+      ["Pushdown unilatéral", 6, 8, 1.25], ["Kickback", 12, 15, 1]
     ]},
     { cat: "Avant-bras", items: [
       ["Bûcheron (avant-bras)", 8, 12, 1], ["Curl inversé", 8, 12, 1], ["Curl poignets", 12, 20, 1]
@@ -669,7 +685,7 @@
     { cat: "Jambes", items: [
       ["Squat", 6, 8, 5], ["Hack squat", 6, 10, 5], ["Presse à cuisses", 8, 12, 5], ["Fentes", 8, 12, 2.5],
       ["Soulevé de terre roumain", 6, 10, 5], ["Leg curl (ischios)", 10, 15, 2.5], ["Leg extension (quadriceps)", 10, 15, 2.5],
-      ["Adducteurs (machine)", 10, 15, 5], ["Hip thrust", 8, 12, 5], ["Squat bulgare", 8, 12, 2.5],
+      ["Adducteurs (machine)", 10, 15, 5], ["Abducteurs (machine)", 8, 12, 2.5], ["Hip thrust", 8, 12, 5], ["Squat bulgare", 8, 12, 2.5],
       ["Mollets debout", 12, 20, 2.5], ["Mollets assis", 12, 20, 2.5]
     ]},
     { cat: "Abdos / Gainage", items: [
@@ -738,7 +754,15 @@
     "Crunch": ["Abdos", "Enroule le buste vers le bassin en soufflant. Ne tire pas sur la nuque."],
     "Relevé de jambes": ["Abdos (bas)", "Suspendu ou allongé, monte les jambes en enroulant le bassin vers le haut."],
     "Crunch à la poulie": ["Abdos", "À genoux sous la poulie haute, corde derrière la tête. Enroule le buste vers le sol en contractant les abdos."],
-    "Roulette abdominale": ["Abdos + gainage", "À genoux, fais rouler la roue vers l'avant en gardant le dos gainé, puis reviens en contractant."]
+    "Roulette abdominale": ["Abdos + gainage", "À genoux, fais rouler la roue vers l'avant en gardant le dos gainé, puis reviens en contractant."],
+    "Écarté poulie bas → haut": ["Haut des pectoraux", "Poulies réglées en bas. Mains vers l'extérieur, monte en arc de cercle jusqu'à hauteur du menton en rapprochant les mains. Contracte le haut des pecs, redescends en contrôlant l'étirement."],
+    "Écarté poulie haut → bas": ["Bas des pectoraux", "Poulies réglées en haut. Ramène les mains en diagonale vers le bas, jusqu'à ce qu'elles se croisent devant le bassin. Contracte le bas des pecs, remonte lentement."],
+    "Élévations latérales poulie": ["Deltoïde latéral (largeur)", "Poulie basse, câble qui passe devant ou derrière toi. Lève le bras sur le côté jusqu'à l'horizontale, coude légèrement fléchi, sans hausser l'épaule. La poulie garde la tension tout le long."],
+    "Extension triceps nuque poulie": ["Triceps (chef long)", "Dos à la poulie, corde derrière la tête, coudes vers l'avant. Tends les bras au-dessus et devant toi, puis redescends jusqu'à bien étirer le triceps."],
+    "Pushdown unilatéral": ["Triceps", "Une main sur la poignée de la poulie haute, coude collé au corps. Pousse vers le bas jusqu'au bras tendu, contracte, remonte contrôlé. Un bras après l'autre."],
+    "Tirage unilatéral à genou": ["Grand dorsal", "Un genou au sol, de profil à la poulie haute. Tire la poignée vers la hanche en gardant le coude près du corps, puis laisse le bras remonter jusqu'à bien étirer le dos."],
+    "Lombaires (extensions)": ["Lombaires + fessiers", "Sur le banc à lombaires, hanches calées. Descends le buste dos droit, puis remonte jusqu'à l'alignement, sans cambrer au-delà. Léger en échauffement."],
+    "Abducteurs (machine)": ["Fessiers (moyen fessier)", "Assis, écarte les cuisses contre la résistance, marque une pause, puis reviens lentement."]
   };
   function normalize(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim(); }
   const DESC = {};
@@ -842,6 +866,7 @@
     });
     if (!st.profile || typeof st.profile !== "object") st.profile = { name: "" };
     if (!Array.isArray(st.seenMsgs)) st.seenMsgs = [];
+    if (!Array.isArray(st.appliedPrograms)) st.appliedPrograms = [];
     if (!st.notif || typeof st.notif !== "object") st.notif = { on: false };
     const rem = st.notif.reminder || {};
     st.notif.on = !!st.notif.on;
@@ -899,7 +924,14 @@
   function dayName(id) { return (getDay(id) || { name: "?" }).name; }
   function dayIndex(id) { return Math.max(0, state.days.findIndex((d) => d.id === id)); }
   function dayColor(id) { return "var(--s" + ((dayIndex(id) % 5) + 1) + ")"; }
-  function exOfDay(dayId) { return state.exercises.filter((e) => e.dayId === dayId); }
+  // Un exercice archivé (retiré par un changement de programme) n'apparaît plus dans sa séance,
+  // mais garde son historique : il revient tel quel si on le remet dans la séance.
+  function exOfDay(dayId) { return state.exercises.filter((e) => e.dayId === dayId && !e.archived); }
+  // Priorité : 1 Essentiel, 2 Important, 3 Bonus (2 par défaut).
+  function prioOf(ex) { return [1, 2, 3].includes(ex.prio) ? ex.prio : 2; }
+  // Durée de séance choisie : full (tout), short (sans les bonus), express (essentiel seulement).
+  function getTimeMode() { try { const m = localStorage.getItem("carnet_de_charge_mode"); return ["full", "short", "express"].includes(m) ? m : "full"; } catch (e) { return "full"; } }
+  function setTimeMode(m) { try { localStorage.setItem("carnet_de_charge_mode", m); } catch (e) {} }
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
   function plural(n, word) { return n + " " + word + (n > 1 ? "s" : ""); }
   function trainings(n) { return n > 1 ? `${n} entraînements notés` : `${n} entraînement noté`; }
@@ -961,7 +993,7 @@
   }
   function lastDateOfDay(dayId) {
     let best = null;
-    exOfDay(dayId).forEach((e) => e.sessions.forEach((s) => { if (!best || s.date > best) best = s.date; }));
+    state.exercises.filter((e) => e.dayId === dayId).forEach((e) => e.sessions.forEach((s) => { if (!best || s.date > best) best = s.date; }));
     return best;
   }
   function relDate(iso) {
@@ -1034,22 +1066,79 @@
   }
 
   // ================= MESSAGES =================
-  let remoteMsgs = [];
+  let remoteMsgs = [], remotePrograms = [];
+  const programLater = new Set();
+  async function fetchJSON(file) {
+    try {
+      const r = await fetch(file + "?t=" + Date.now(), { cache: "no-store" });
+      return r.ok ? await r.json() : null;
+    } catch (e) { return null; }
+  }
   async function fetchMessages() {
     if (!navigator.onLine || location.protocol === "file:") return;
-    try {
-      const r = await fetch("messages.json?t=" + Date.now(), { cache: "no-store" });
-      if (!r.ok) return;
-      const j = await r.json();
-      remoteMsgs = Array.isArray(j) ? j : (Array.isArray(j.messages) ? j.messages : []);
-      if (view === "home") renderHome();
-    } catch (e) {}
+    const [m, p] = await Promise.all([fetchJSON("messages.json"), fetchJSON("programmes.json")]);
+    if (m) remoteMsgs = Array.isArray(m) ? m : (Array.isArray(m.messages) ? m.messages : []);
+    if (p) remotePrograms = Array.isArray(p) ? p : [];
+    if (view === "home") renderHome();
+  }
+
+  // ================= PROGRAMMES ENVOYÉS =================
+  // Un programme de programmes.json, destiné à un pseudo, réorganise les séances sur le téléphone.
+  // L'historique est gardé : un exercice qui reste (même nom, ou un ancien nom listé dans « from »)
+  // garde ses séances ; un exercice retiré est archivé, pas supprimé. Une copie permet d'annuler.
+  const PROGRAM_UNDO_KEY = "carnet_de_charge_avant_programme";
+  function pendingProgram() {
+    const me = normalize(state.profile.name);
+    if (!me) return null;
+    return remotePrograms.find((p) => p && p.id && Array.isArray(p.days) && !state.appliedPrograms.includes(p.id) && !programLater.has(p.id)
+      && (Array.isArray(p.to) ? p.to : [p.to]).some((x) => normalize(x) === me)) || null;
+  }
+  function applyProgram(p) {
+    try { localStorage.setItem(PROGRAM_UNDO_KEY, JSON.stringify({ at: Date.now(), id: p.id, state })); } catch (e) {}
+    const claimed = new Set(), progDays = [];
+    p.days.forEach((pd) => {
+      let day = state.days.find((d) => normalize(d.name) === normalize(pd.name));
+      if (!day) { day = { id: uid(), name: pd.name }; state.days.push(day); } else day.name = pd.name;
+      progDays.push(day);
+      const ordered = [];
+      (pd.exercises || []).forEach((pe) => {
+        const names = [pe.name].concat(pe.from || []).map(normalize);
+        let ex = state.exercises.find((e) => e.dayId === day.id && !claimed.has(e.id) && names.includes(normalize(e.name)));
+        if (!ex) { ex = { id: uid(), dayId: day.id, sessions: [] }; state.exercises.push(ex); }
+        claimed.add(ex.id);
+        Object.assign(ex, {
+          name: pe.name, sets: pe.sets || 3, repMin: pe.repMin || 6, repMax: Math.max(pe.repMin || 6, pe.repMax || 8),
+          increment: pe.increment || 2.5, prio: [1, 2, 3].includes(pe.prio) ? pe.prio : 2
+        });
+        if (pe.note) ex.note = pe.note;
+        delete ex.archived;
+        ordered.push(ex);
+      });
+      state.exercises.forEach((e) => { if (e.dayId === day.id && !claimed.has(e.id)) e.archived = true; });
+      state.exercises = state.exercises.filter((e) => !ordered.includes(e)).concat(ordered);
+    });
+    state.days = progDays.concat(state.days.filter((d) => !progDays.includes(d)));
+    state.appliedPrograms.push(p.id);
+    state.demo = false;
+    save();
+  }
+  function programBackup() {
+    try { const raw = localStorage.getItem(PROGRAM_UNDO_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+  function undoProgram() {
+    const b = programBackup();
+    if (!b || !b.state) return;
+    const keep = { profile: state.profile, notif: state.notif, seenMsgs: state.seenMsgs, lastSeenNews: state.lastSeenNews };
+    state = normalizeState(Object.assign(b.state, keep));
+    if (!state.appliedPrograms.includes(b.id)) state.appliedPrograms.push(b.id);
+    try { localStorage.removeItem(PROGRAM_UNDO_KEY); } catch (e) {}
+    save();
   }
   function pendingMessages() {
     const me = normalize(state.profile.name);
     const today = todayISO();
     return remoteMsgs.filter((m) => {
-      if (!m || !m.id || !m.text || state.seenMsgs.includes(m.id)) return false;
+      if (!m || !m.id || !m.text || m.inApp === false || state.seenMsgs.includes(m.id)) return false;
       if (m.until && m.until < today) return false;
       const to = Array.isArray(m.to) ? m.to : [m.to || "*"];
       const not = Array.isArray(m.not) ? m.not.map(normalize) : [];
@@ -1066,6 +1155,15 @@
     let html = `<h1 class="lt">Séances</h1>`;
     const msgs = pendingMessages();
     const cards = [];
+    const prog = pendingProgram();
+    if (prog) {
+      cards.push(`<div class="group note-card msg">
+          <div class="msg-title">${escapeHtml(prog.title || "Ton nouveau programme")}</div>
+          ${prog.from ? `<div class="msg-from">De ${escapeHtml(prog.from)}</div>` : ""}
+          <p>${escapeHtml(prog.text || "Tes séances vont être réorganisées. Ton historique est conservé.")}</p>
+          <div class="actions"><button class="link" id="progApply">Appliquer</button><button class="link muted" id="progLater">Plus tard</button></div>
+        </div>`);
+    }
     msgs.forEach((m) => {
       cards.push(`<div class="group note-card msg">
           ${m.title ? `<div class="msg-title">${escapeHtml(m.title)}</div>` : ""}
@@ -1112,6 +1210,14 @@
     main.querySelectorAll("[data-up]").forEach((b) => b.addEventListener("click", () => { if (moveIn(state.days, +b.dataset.up, -1)) { save(); renderHome(); } }));
     main.querySelectorAll("[data-down]").forEach((b) => b.addEventListener("click", () => { if (moveIn(state.days, +b.dataset.down, 1)) { save(); renderHome(); } }));
     main.querySelectorAll("[data-msg]").forEach((b) => b.addEventListener("click", () => { state.seenMsgs.push(b.dataset.msg); save(); renderHome(); }));
+    const pa = $("#progApply");
+    if (pa) pa.addEventListener("click", () => {
+      confirmAction("Appliquer le nouveau programme ?",
+        "Tes séances et leurs exercices vont être remplacés par le nouveau programme. Tout ton historique est gardé, et tu peux revenir en arrière dans Réglages.",
+        () => { applyProgram(prog); renderHome(); window.scrollTo(0, 0); toast("Nouveau programme appliqué."); }, "Appliquer", true);
+    });
+    const pl = $("#progLater");
+    if (pl) pl.addEventListener("click", () => { programLater.add(prog.id); renderHome(); });
     $("#addDay").addEventListener("click", () => openDaySheet(null));
     bindEditToggle(renderHome);
     const dn = $("#dismissNote");
@@ -1140,12 +1246,24 @@
     view = "day"; currentDayId = dayId; currentExId = null;
     setNav({ back: "Séances", title: day.name, actions: editBtn() });
 
-    const exs = exOfDay(dayId);
+    const all = exOfDay(dayId);
+    const mode = editMode ? "full" : getTimeMode();
+    const exs = all.filter((e) => mode === "full" || (mode === "short" ? prioOf(e) <= 2 : prioOf(e) === 1));
+    const hidden = all.length - exs.length;
     const last = relDate(lastDateOfDay(dayId));
-    let html = `<h1 class="lt">${escapeHtml(day.name)}</h1><p class="lt-sub">${plural(exs.length, "exercice")} · ${last ? "dernière fois " + last : "jamais faite"}</p>`;
+    let html = `<h1 class="lt">${escapeHtml(day.name)}</h1><p class="lt-sub">${plural(all.length, "exercice")} · ${last ? "dernière fois " + last : "jamais faite"}</p>`;
 
-    if (!exs.length) {
+    if (all.length && !editMode) {
+      html += `<div class="modebar"><span class="seg" id="modeSeg" role="group" aria-label="Durée de la séance">
+          ${[["full", "Complète"], ["short", "Courte"], ["express", "Express"]].map(([m, l]) =>
+            `<button data-mode="${m}" class="${mode === m ? "on" : ""}" aria-pressed="${mode === m}">${l}</button>`).join("")}
+        </span></div>`;
+    }
+
+    if (!all.length) {
       html += `<div class="group empty"><b>Séance vide</b>Ajoute des exercices depuis le répertoire, ou crée les tiens.</div>`;
+    } else if (!exs.length) {
+      html += `<div class="group empty"><b>Aucun exercice essentiel</b>Touche Modifier, puis un exercice, pour choisir ses priorités.</div>`;
     } else {
       html += `<div class="group">`;
       exs.forEach((ex, i) => {
@@ -1155,7 +1273,9 @@
         const sub = le
           ? `${fmtSets(le.s.sets)}${le.owner.dayId !== dayId ? ` · ${escapeHtml(dayName(le.owner.dayId))}, ${relDate(le.s.date)}` : ""}`
           : "Pas encore fait";
-        const body = `<span class="row-main"><span class="row-title">${escapeHtml(ex.name)}</span><span class="row-sub">${sub}</span></span>`;
+        const p = prioOf(ex);
+        const tag = p === 1 ? `<span class="ptag p1">Essentiel</span>` : p === 3 ? `<span class="ptag p3">Bonus</span>` : "";
+        const body = `<span class="row-main"><span class="row-title">${escapeHtml(ex.name)}${tag}</span><span class="row-sub">${sub}</span></span>`;
         if (editMode) {
           html += `<div class="row"><button class="row-btn" data-settings="${ex.id}" aria-label="Réglages de ${escapeHtml(ex.name)}">${body}</button><span class="reorder">
               <button class="mini" data-up="${ex.id}" ${i === 0 ? "disabled" : ""} aria-label="Monter">${icons.up}</button>
@@ -1168,9 +1288,14 @@
       });
       html += `</div>`;
     }
+    if (all.length && !editMode) {
+      html += `<p class="sf">${mode === "full"
+        ? "Pressé ? « Courte » retire les exercices bonus, « Express » ne garde que l'essentiel."
+        : `${hidden ? plural(hidden, "exercice") + " masqué" + (hidden > 1 ? "s" : "") + ". " : ""}${mode === "short" ? "Courte : sans les exercices bonus." : "Express : seulement l'essentiel."}`}</p>`;
+    }
     html += `<div class="group mt"><button class="row row-action" id="addEx">${icons.plusCircle}Ajouter un exercice</button></div>`;
     if (editMode) {
-      html += `<p class="sf">Touche un exercice pour le renommer, changer ses séries, ses reps ou son palier.</p>
+      html += `<p class="sf">Touche un exercice pour le renommer, changer sa priorité, ses séries, ses reps ou son palier.</p>
         <div class="group mt"><button class="row" id="renameDay"><span class="row-main"><span class="row-title">Renommer la séance</span></span>${chev}</button>
         <button class="row row-danger" id="deleteDay">Supprimer la séance</button></div>`;
     }
@@ -1189,6 +1314,7 @@
     main.querySelectorAll("[data-up]").forEach((b) => b.addEventListener("click", () => swap(b.dataset.up, -1)));
     main.querySelectorAll("[data-down]").forEach((b) => b.addEventListener("click", () => swap(b.dataset.down, 1)));
     $("#addEx").addEventListener("click", openPickSheet);
+    main.querySelectorAll("#modeSeg [data-mode]").forEach((b) => b.addEventListener("click", () => { setTimeMode(b.dataset.mode); renderDay(dayId); }));
     const rn = $("#renameDay"); if (rn) rn.addEventListener("click", () => openDaySheet(dayId));
     const dd = $("#deleteDay"); if (dd) dd.addEventListener("click", () => askDeleteDay(dayId));
     bindEditToggle(() => renderDay(dayId));
@@ -1595,7 +1721,7 @@
         <button class="row row-action" id="exportBtn">Télécharger une sauvegarde</button>
         <button class="row row-action" id="importBtn">Restaurer une sauvegarde</button>
       </div>
-      <p class="sf">${plural(state.days.length, "séance")}, ${plural(state.exercises.length, "exercice")} et ${trainings(nSess)}, enregistrés sur ce téléphone. Fais une sauvegarde de temps en temps pour tout récupérer si tu changes de téléphone.</p>
+      <p class="sf">${plural(state.days.length, "séance")}, ${plural(state.exercises.filter((e) => !e.archived).length, "exercice")} et ${trainings(nSess)}, enregistrés sur ce téléphone. Fais une sauvegarde de temps en temps pour tout récupérer si tu changes de téléphone.</p>
 
       <h2 class="sh">Installer l'appli</h2>
       <div class="group pad"><ol class="steps">
@@ -1604,6 +1730,10 @@
         <li><b>Android (Chrome)</b> : menu ⋮, puis « Installer l'application ».</li>
       </ol></div>
       <p class="sf">Une fois installée, l'appli garde tes séances et fonctionne sans réseau.</p>
+      ${programBackup() ? `<h2 class="sh">Programme</h2>
+      <div class="group"><button class="row row-danger" id="undoProg">Revenir au programme d'avant</button></div>
+      <p class="sf">Remet tes séances comme avant le dernier programme reçu (appliqué le ${fmtDayLong(isoOf(new Date(programBackup().at)))}). Les séances notées depuis seront perdues.</p>` : ""}
+
       <h2 class="sh">À propos</h2>
       <div class="group"><button class="row" id="replayNews"><span class="row-main"><span class="row-title">Revoir les nouveautés</span></span>${chev}</button></div>
       <p class="sf">Carnet de Charge · version ${APP_VERSION}</p>`;
@@ -1618,6 +1748,12 @@
     $("#importBtn").addEventListener("click", () => $("#importFile").click());
     bindNotifSection();
     $("#replayNews").addEventListener("click", () => maybeShowNews(true));
+    const up = $("#undoProg");
+    if (up) up.addEventListener("click", () => {
+      confirmAction("Revenir au programme d'avant ?", "Tes séances reviennent comme avant le dernier programme reçu. Les séances notées depuis seront perdues.", () => {
+        undoProgram(); renderHome(); window.scrollTo(0, 0); toast("Ancien programme remis.");
+      }, "Revenir en arrière");
+    });
     observeTitle();
   }
 
@@ -1858,10 +1994,16 @@
   function addFromLibrary(btn) {
     const name = btn.dataset.name;
     if (exOfDay(currentDayId).some((e) => normalize(e.name) === normalize(name))) { toast("Déjà dans la séance."); return; }
-    state.exercises.push({
-      id: uid(), dayId: currentDayId, name,
-      sets: +btn.dataset.sets || 3, repMin: +btn.dataset.min, repMax: +btn.dataset.max, increment: +btn.dataset.inc, sessions: []
-    });
+    const arch = state.exercises.find((e) => e.dayId === currentDayId && e.archived && normalize(e.name) === normalize(name));
+    if (arch) {
+      delete arch.archived;
+      state.exercises = state.exercises.filter((e) => e !== arch).concat(arch);
+    } else {
+      state.exercises.push({
+        id: uid(), dayId: currentDayId, name,
+        sets: +btn.dataset.sets || 3, repMin: +btn.dataset.min, repMax: +btn.dataset.max, increment: +btn.dataset.inc, sessions: []
+      });
+    }
     if (state.demo) state.demo = false;
     save();
     btn.closest(".pick-row").classList.add("added");
@@ -1888,9 +2030,10 @@
 
   // ================= CONFIRMATION =================
   let confirmCb = null;
-  function confirmAction(title, text, onYes, yesLabel) {
+  function confirmAction(title, text, onYes, yesLabel, safe) {
     $("#confirmTitle").textContent = title; $("#confirmText").textContent = text;
     $("#confirmYes").textContent = yesLabel || "Supprimer";
+    $("#confirmYes").classList.toggle("safe", !!safe);
     confirmCb = onYes; openOverlay("#confirmSheet");
   }
   $("#confirmYes").addEventListener("click", () => { const cb = confirmCb; closeOverlay("#confirmSheet"); confirmCb = null; if (cb) cb(); });
@@ -1942,6 +2085,12 @@
     });
   }
   function setSheetSets(n) { sheetSets = Math.min(10, Math.max(1, n)); $("#setsVal").textContent = sheetSets; }
+  let sheetPrio = 2;
+  function setSheetPrio(p) {
+    sheetPrio = p;
+    document.querySelectorAll("#prioSeg [data-p]").forEach((b) => { const on = +b.dataset.p === p; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  }
+  document.querySelectorAll("#prioSeg [data-p]").forEach((b) => b.addEventListener("click", () => setSheetPrio(+b.dataset.p)));
   function openExSheet(exId, preset) {
     editingExId = exId || null;
     const ex = exId ? getEx(exId) : null;
@@ -1952,6 +2101,7 @@
     $("#repMax").value = ex ? ex.repMax : 8;
     $("#increment").value = fmtW(ex ? ex.increment : 2.5);
     setSheetSets(ex ? ex.sets : 3);
+    setSheetPrio(ex ? prioOf(ex) : 2);
     fillDaySelect(ex ? ex.dayId : currentDayId);
     $("#exErr").textContent = "";
     $("#exDeleteGroup").hidden = !ex;
@@ -1969,18 +2119,26 @@
     if (!name) { $("#exErr").textContent = "Donne un nom à l'exercice."; return; }
     if (!dayId) { $("#exErr").textContent = "Crée d'abord une séance."; return; }
     const wasEditing = editingExId;
-    if (state.exercises.some((e) => e.dayId === dayId && e.id !== wasEditing && normalize(e.name) === normalize(name))) {
+    if (state.exercises.some((e) => e.dayId === dayId && !e.archived && e.id !== wasEditing && normalize(e.name) === normalize(name))) {
       $("#exErr").textContent = "Cet exercice est déjà dans cette séance."; return;
     }
     const note = $("#exNote").value.trim();
     if (wasEditing) {
       const ex = getEx(wasEditing);
-      Object.assign(ex, { name, dayId, sets: sheetSets, repMin, repMax, increment });
+      Object.assign(ex, { name, dayId, sets: sheetSets, repMin, repMax, increment, prio: sheetPrio });
       if (note) ex.note = note; else delete ex.note;
     } else {
-      const ex = { id: uid(), dayId, name, sets: sheetSets, repMin, repMax, increment, sessions: [] };
-      if (note) ex.note = note;
-      state.exercises.push(ex);
+      // Un exercice archivé du même nom dans cette séance revient avec son historique.
+      let ex = state.exercises.find((e) => e.dayId === dayId && e.archived && normalize(e.name) === normalize(name));
+      if (ex) {
+        delete ex.archived;
+        state.exercises = state.exercises.filter((e) => e !== ex).concat(ex);
+        Object.assign(ex, { name, sets: sheetSets, repMin, repMax, increment, prio: sheetPrio });
+      } else {
+        ex = { id: uid(), dayId, name, sets: sheetSets, repMin, repMax, increment, prio: sheetPrio, sessions: [] };
+        state.exercises.push(ex);
+      }
+      if (note) ex.note = note; else delete ex.note;
       if (state.demo) state.demo = false;
     }
     save(); closeOverlay("#exSheet"); editingExId = null;

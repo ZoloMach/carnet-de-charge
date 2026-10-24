@@ -5,7 +5,7 @@
 // messages.json est toujours lu sur le réseau (jamais depuis le cache).
 // Il affiche aussi les notifications envoyées par le serveur (push-server/).
 // Les vidéos ne passent pas par le cache : Safari les lit par morceaux (requêtes Range).
-const CACHE = "carnet-v5";
+const CACHE = "carnet-v6";
 const SHELL = [
   "./",
   "./index.html",
@@ -57,7 +57,7 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.endsWith("/messages.json") || url.pathname.endsWith(".mp4")) return;
+  if (url.pathname.endsWith("/messages.json") || url.pathname.endsWith("/programmes.json") || url.pathname.endsWith(".mp4")) return;
 
   if (req.mode === "navigate") {
     event.respondWith((async () => {
