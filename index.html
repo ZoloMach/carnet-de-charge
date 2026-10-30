@@ -263,6 +263,20 @@
   .chips button { border: 0; background: var(--fill); border-radius: 999px; padding: 7px 14px; font-size: 15px; }
   .chips button:active { background: var(--fill-2); }
 
+  /* ---------- séance en cours : fait / reste ---------- */
+  .progress { padding: 12px 16px 14px; margin-bottom: 12px; }
+  .pg-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 15px; margin-bottom: 9px; }
+  .pg-top b { font-weight: 700; }
+  .pg-left { font-size: 14px; color: var(--label-2); white-space: nowrap; }
+  .progress.complete .pg-left { color: var(--go); font-weight: 600; }
+  .pg-bar { height: 8px; border-radius: 999px; background: var(--fill); overflow: hidden; }
+  .pg-bar span { display: block; height: 100%; border-radius: inherit; background: var(--go); transition: width .3s ease; }
+  .check { width: 24px; height: 24px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; }
+  .check.on { background: var(--go); color: #fff; }
+  .check.on svg { width: 14px; height: 14px; }
+  .check.off { box-shadow: inset 0 0 0 1.5px var(--label-3); }
+  .row.done .row-title { color: var(--go); }
+
   /* ---------- durée de séance et priorités ---------- */
   .modebar { margin: 0 0 12px; }
   .modebar .seg { display: flex; width: 100%; }
@@ -642,7 +656,7 @@
 (function () {
   const STORE_KEY = "carnet_de_charge_v1";
   const THEME_KEY = "carnet_de_charge_theme";
-  const APP_VERSION = "3.3";
+  const APP_VERSION = "3.4";
   // Les nouveautés (vidéo + notes de version) s'affichent une fois quand cette valeur change.
   const NEWS_VERSION = "3.2";
   // Serveur de notifications (Cloudflare Worker, dossier push-server/) et sa clé publique VAPID.
@@ -991,6 +1005,12 @@
     s.sets.filter((x) => x.w >= t).slice(0, ex.sets).forEach((x) => { missing += Math.max(0, ex.repMax - x.r); });
     return `Reste à <b>${fmtW(t)} kg</b>. Il te manque <b>${plural(missing, "rep")}</b> pour valider ${ex.sets}×${ex.repMax} et passer à ${fmtW(t + ex.increment)} kg.`;
   }
+  // Séance notée aujourd'hui pour cet exercice, dans sa propre séance (se remet à zéro le lendemain).
+  function todaySession(ex) {
+    const t = todayISO();
+    for (let i = ex.sessions.length - 1; i >= 0; i--) if (ex.sessions[i].date === t) return ex.sessions[i];
+    return null;
+  }
   function lastDateOfDay(dayId) {
     let best = null;
     state.exercises.filter((e) => e.dayId === dayId).forEach((e) => e.sessions.forEach((s) => { if (!best || s.date > best) best = s.date; }));
@@ -1190,7 +1210,10 @@
         const exs = exOfDay(day.id);
         const goCount = exs.filter((e) => status(e) === "go").length;
         const last = relDate(lastDateOfDay(day.id));
-        const sub = `${plural(exs.length, "exercice")} · ${last || "jamais faite"}`;
+        const doneToday = exs.filter((e) => todaySession(e)).length;
+        const sub = doneToday
+          ? (doneToday === exs.length ? `<span style="color:var(--go);font-weight:600">Faite aujourd'hui</span> · ${plural(exs.length, "exercice")}` : `<span style="color:var(--go);font-weight:600">En cours</span> · ${doneToday}/${exs.length} faits`)
+          : `${plural(exs.length, "exercice")} · ${last || "jamais faite"}`;
         const icon = `<span class="ico" style="background:var(--s${(i % 5) + 1})">${icons.dumbbell}</span>`;
         const body = `<span class="row-main"><span class="row-title">${escapeHtml(day.name)}</span><span class="row-sub">${sub}</span></span>`;
         if (editMode) {
@@ -1260,6 +1283,18 @@
         </span></div>`;
     }
 
+    // Séance en cours : un exercice noté aujourd'hui dans cette séance compte comme fait.
+    const doneCount = editMode ? 0 : exs.filter((e) => todaySession(e)).length;
+    const started = doneCount > 0;
+    if (started) {
+      const left = exs.length - doneCount;
+      html += `<div class="group progress${left ? "" : " complete"}" role="status">
+          <div class="pg-top"><span><b>${doneCount} sur ${exs.length}</b> ${doneCount > 1 ? "faits" : "fait"}</span>
+            <span class="pg-left">${left ? `il en reste ${left}` : "Séance terminée"}</span></div>
+          <div class="pg-bar" aria-hidden="true"><span style="width:${Math.round(doneCount / exs.length * 100)}%"></span></div>
+        </div>`;
+    }
+
     if (!all.length) {
       html += `<div class="group empty"><b>Séance vide</b>Ajoute des exercices depuis le répertoire, ou crée les tiens.</div>`;
     } else if (!exs.length) {
@@ -1281,9 +1316,17 @@
               <button class="mini" data-up="${ex.id}" ${i === 0 ? "disabled" : ""} aria-label="Monter">${icons.up}</button>
               <button class="mini" data-down="${ex.id}" ${i === exs.length - 1 ? "disabled" : ""} aria-label="Descendre">${icons.down}</button></span></div>`;
         } else {
-          const label = st === "go" ? "Monte" : st === "hold" ? "Garde" : "À tester";
-          html += `<button class="row" data-id="${ex.id}">${body}
-              <span class="target ${st}"><span class="t-w">${nw === null ? "—" : fmtW(nw) + " kg"}</span><span class="pill ${st}">${label}</span></span>${chev}</button>`;
+          const ts = todaySession(ex);
+          if (ts) {
+            html += `<button class="row done" data-id="${ex.id}" aria-label="${escapeHtml(ex.name)}, fait aujourd'hui">
+                <span class="check on">${icons.check}</span>
+                <span class="row-main"><span class="row-title">${escapeHtml(ex.name)}${tag}</span><span class="row-sub">Fait · ${fmtSets(ts.sets)}</span></span>
+                <span class="pill go">Fait</span>${chev}</button>`;
+          } else {
+            const label = st === "go" ? "Monte" : st === "hold" ? "Garde" : "À tester";
+            html += `<button class="row" data-id="${ex.id}">${started ? `<span class="check off" aria-hidden="true"></span>` : ""}${body}
+                <span class="target ${st}"><span class="t-w">${nw === null ? "—" : fmtW(nw) + " kg"}</span><span class="pill ${st}">${label}</span></span>${chev}</button>`;
+          }
         }
       });
       html += `</div>`;
@@ -2231,7 +2274,18 @@
   fetchMessages();
   setTimeout(() => maybeShowNews(false), 400);
   window.addEventListener("online", fetchMessages);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") fetchMessages(); });
+  // Si l'appli reste ouverte jusqu'au lendemain, les exercices « faits » se remettent à zéro au retour.
+  let renderedOn = todayISO();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    fetchMessages();
+    if (todayISO() !== renderedOn) {
+      renderedOn = todayISO();
+      if (view === "day" && currentDayId) renderDay(currentDayId);
+      else if (view === "home") renderHome();
+      else if (view === "cal") { calSel = todayISO(); renderCal(); }
+    }
+  });
 
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     window.addEventListener("load", () => { navigator.serviceWorker.register("./sw.js").catch(() => {}); });
