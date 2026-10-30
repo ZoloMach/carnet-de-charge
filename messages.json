@@ -5,5 +5,13 @@
     "inApp": false,
     "title": "Ton nouveau programme est prêt",
     "text": "Ouvre Carnet de Charge et appuie sur « Appliquer ». Ton historique est gardé."
+  },
+  {
+    "id": "sacha-2026-10-30-entrainement",
+    "to": "*",
+    "not": ["zolomach"],
+    "inApp": false,
+    "title": "Carnet de Charge",
+    "text": "Alors petite salope, tu t'es bien entraîné aujourd'hui ?"
   }
 ]
